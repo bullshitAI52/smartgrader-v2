@@ -26,13 +26,12 @@ export function SmartUploader({ onUpload, maxImages = 5 }: SmartUploaderProps) {
   const [showScoreDialog, setShowScoreDialog] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [uploadError, setUploadError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const dropZoneRef = useRef<HTMLDivElement>(null);
 
   const processFiles = useCallback(async (files: File[]) => {
     if (images.length + files.length > maxImages) {
-      setUploadError(`最多只能上传 ${maxImages} 张图片`);
+      setError(`最多只能上传 ${maxImages} 张图片`);
       return;
     }
 
@@ -47,7 +46,7 @@ export function SmartUploader({ onUpload, maxImages = 5 }: SmartUploaderProps) {
           useWebWorker: true,
           initialQuality: 0.85,
         };
-        
+
         try {
           const compressedFile = await imageCompression(file, options);
           const preview = URL.createObjectURL(compressedFile);
@@ -69,7 +68,7 @@ export function SmartUploader({ onUpload, maxImages = 5 }: SmartUploaderProps) {
     );
 
     setImages((prev) => [...prev, ...processedFiles]);
-    
+
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
     }
@@ -77,7 +76,7 @@ export function SmartUploader({ onUpload, maxImages = 5 }: SmartUploaderProps) {
 
   const handleFileSelect = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
-    setUploadError(null);
+    setError(null);
     await processFiles(files);
   }, [processFiles]);
 
@@ -97,16 +96,16 @@ export function SmartUploader({ onUpload, maxImages = 5 }: SmartUploaderProps) {
     e.preventDefault();
     e.stopPropagation();
     setIsDragging(false);
-    
-    const files = Array.from(e.dataTransfer.files).filter(file => 
+
+    const files = Array.from(e.dataTransfer.files).filter(file =>
       file.type.startsWith('image/')
     );
-    
+
     if (files.length === 0) {
       setError('请上传图片文件');
       return;
     }
-    
+
     await processFiles(files);
   }, [processFiles]);
 
@@ -117,7 +116,7 @@ export function SmartUploader({ onUpload, maxImages = 5 }: SmartUploaderProps) {
   const handleMoveImage = useCallback((index: number, direction: 'up' | 'down') => {
     const newImages = [...images];
     const targetIndex = direction === 'up' ? index - 1 : index + 1;
-    
+
     if (targetIndex >= 0 && targetIndex < newImages.length) {
       [newImages[index], newImages[targetIndex]] = [newImages[targetIndex], newImages[index]];
       setImages(newImages);
@@ -155,9 +154,9 @@ export function SmartUploader({ onUpload, maxImages = 5 }: SmartUploaderProps) {
           onChange={handleFileSelect}
           className="hidden"
         />
-        <Button 
-          onClick={() => fileInputRef.current?.click()} 
-          variant="outline" 
+        <Button
+          onClick={() => fileInputRef.current?.click()}
+          variant="outline"
           className="flex-1 sm:flex-none gap-2 h-12"
         >
           <Upload className="w-5 h-5" />
@@ -166,8 +165,8 @@ export function SmartUploader({ onUpload, maxImages = 5 }: SmartUploaderProps) {
             {images.length}/{maxImages}
           </span>
         </Button>
-        <Button 
-          onClick={handleUpload} 
+        <Button
+          onClick={handleUpload}
           disabled={images.length === 0}
           className="flex-1 sm:flex-none gap-2 h-12"
         >
@@ -182,9 +181,9 @@ export function SmartUploader({ onUpload, maxImages = 5 }: SmartUploaderProps) {
             <X className="w-5 h-5" />
             {error}
           </span>
-          <Button 
-            variant="ghost" 
-            size="sm" 
+          <Button
+            variant="ghost"
+            size="sm"
             onClick={clearError}
             className="h-8 w-8 p-0"
           >
@@ -239,11 +238,11 @@ export function SmartUploader({ onUpload, maxImages = 5 }: SmartUploaderProps) {
           ))}
         </div>
       ) : (
-        <div 
+        <div
           ref={dropZoneRef}
           className={`border-2 border-dashed rounded-xl p-8 sm:p-12 text-center transition-all cursor-pointer
             ${isDragging ? 'border-blue-500 bg-blue-50' : 'border-gray-300 hover:border-gray-400 bg-gray-50 hover:bg-gray-100'
-          }`}
+            }`}
           onDragOver={handleDragOver}
           onDragLeave={handleDragLeave}
           onDrop={handleDrop}

@@ -10,7 +10,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
-import { CheckCircle2, XCircle, RefreshCw, X, Settings2, Sparkles, BrainCircuit, GraduationCap, ScanText, FileText, BookOpen, ArrowRight, Copy, UploadCloud } from 'lucide-react';
+import { XCircle, RefreshCw, X, Settings2, Sparkles, BrainCircuit, GraduationCap, ScanText, FileText, BookOpen, Copy, UploadCloud } from 'lucide-react';
 import { ExamGradingResult, geminiService } from '@/lib/services/gemini';
 import { cn } from '@/lib/utils';
 
@@ -480,21 +480,7 @@ export default function Home() {
 
       </main>
 
-      <style jsx global>{`
-        .custom-scrollbar::-webkit-scrollbar {
-          width: 6px;
-        }
-        .custom-scrollbar::-webkit-scrollbar-track {
-          background: transparent;
-        }
-        .custom-scrollbar::-webkit-scrollbar-thumb {
-          background-color: #e2e8f0;
-          border-radius: 3px;
-        }
-        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-          background-color: #cbd5e1;
-        }
-      `}</style>
+
     </div>
   );
 }
