@@ -148,7 +148,8 @@ class GeminiService {
 
     const prompt = "Please extract all the text from this image exactly as it appears. Preserve formatting where possible.";
 
-    const modelsToTry = ['gemini-1.5-flash-001', 'gemini-1.5-pro-002', 'gemini-1.5-pro'];
+    // Try explicit version first, then alias, then pro
+    const modelsToTry = ['gemini-1.5-flash-001', 'gemini-1.5-flash', 'gemini-1.5-pro-002', 'gemini-1.5-pro'];
     let lastError = null;
 
     for (const modelName of modelsToTry) {
