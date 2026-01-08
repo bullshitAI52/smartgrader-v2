@@ -5,15 +5,23 @@ import { SmartUploader } from '@/components/shared/smart-uploader';
 import { GradingOverlay } from '@/components/grading/grading-overlay';
 import { ExportCanvas } from '@/components/grading/export-canvas';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { CheckCircle2, XCircle, AlertCircle, RefreshCw, X, Settings2, Sparkles, BrainCircuit, GraduationCap } from 'lucide-react';
 import { ExamGradingResult, geminiService } from '@/lib/services/gemini';
+import { cn } from '@/lib/utils';
+
+const TABS = [
+  { id: 'upload', label: '上传试卷批改' },
+  { id: 'tutor', label: 'AI智能辅导' },
+  { id: 'bank', label: '万能题库' },
+  { id: 'analysis', label: '学情分析' },
+];
 
 export default function Home() {
+  const [activeTab, setActiveTab] = useState('upload');
   const [images, setImages] = useState<string[]>([]);
   const [gradingResult, setGradingResult] = useState<ExamGradingResult | null>(null);
   const [isGrading, setIsGrading] = useState(false);
@@ -122,299 +130,203 @@ export default function Home() {
   };
 
   return (
-    <div className="min-h-screen pt-16 pb-12 transition-colors duration-500">
-      {/* Header / Nav */}
-      <header className="fixed top-0 left-0 right-0 z-50 glass border-b border-white/20 px-6 py-4 flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <div className="bg-indigo-600 p-2 rounded-lg text-white shadow-lg shadow-indigo-500/30">
-            <BrainCircuit size={24} />
-          </div>
-          <span className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-indigo-700 to-violet-700 tracking-tight">
-            SmartGrader AI
-          </span>
-        </div>
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={() => setShowApiKeyModal(true)}
-          className="hover:bg-indigo-50 text-indigo-900 rounded-full"
-        >
-          <Settings2 className="w-5 h-5" />
-        </Button>
-      </header>
-
-      {/* API Key Modal */}
+    <div className="min-h-screen bg-white">
+      {/* Configure Dialog */}
       <Dialog open={showApiKeyModal} onOpenChange={setShowApiKeyModal}>
         <DialogContent className="sm:max-w-md glass-card">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <Sparkles className="w-5 h-5 text-indigo-500" />
-              Configuration Required
+              <Settings2 className="w-5 h-5 text-indigo-500" />
+              Configuration
             </DialogTitle>
             <DialogDescription>
-              To process exams securely, please provide your Google Gemini API Key.
-              It will be stored locally in your browser.
+              Please enter your Google Gemini API Key to use the AI features.
             </DialogDescription>
           </DialogHeader>
-          <div className="flex items-center space-x-2 py-4">
-            <div className="grid flex-1 gap-2">
-              <Input
-                id="apiKey"
-                type="password"
-                placeholder="Paste your Gemini API Key here..."
-                value={apiKey}
-                onChange={(e) => setApiKey(e.target.value)}
-                className="bg-white/50 border-indigo-100 focus:ring-indigo-500"
-              />
-            </div>
+          <div className="py-4">
+            <Input
+              type="password"
+              placeholder="Gemini API Key"
+              value={apiKey}
+              onChange={(e) => setApiKey(e.target.value)}
+            />
           </div>
           <DialogFooter>
-            <Button
-              type="submit"
-              onClick={handleSaveApiKey}
-              className="bg-indigo-600 hover:bg-indigo-700 text-white shadow-lg shadow-indigo-500/20"
-            >
-              Save & Continue
-            </Button>
+            <Button onClick={handleSaveApiKey}>Save</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
-        {/* Error Display */}
-        {error && (
-          <div className="p-4 bg-red-50/90 backdrop-blur border border-red-200 rounded-xl flex items-center justify-between gap-4 animate-in fade-in slide-in-from-top-4 shadow-sm">
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-red-100 rounded-full">
-                <XCircle className="w-5 h-5 text-red-600" />
-              </div>
-              <span className="text-red-800 font-medium">{error}</span>
-            </div>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setError(null)}
-              className="h-8 w-8 p-0 hover:bg-red-100 rounded-full"
+      {/* Top Navigation - Sketch Style */}
+      <div className="sticky top-0 z-50 bg-white border-b border-gray-100 pb-1">
+        <div className="flex overflow-x-auto no-scrollbar justify-between px-4 pt-4 max-w-lg mx-auto">
+          {TABS.map((tab) => (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id)}
+              className={cn(
+                "flex-shrink-0 px-2 pb-2 text-sm md:text-base font-medium transition-colors relative",
+                activeTab === tab.id
+                  ? "text-[#FF4D4F] font-bold"
+                  : "text-gray-400 hover:text-gray-600"
+              )}
             >
-              <X className="w-4 h-4 text-red-700" />
-            </Button>
+              {tab.label}
+              {activeTab === tab.id && (
+                <div className="absolute bottom-0 left-0 right-0 h-[2px] bg-[#FF4D4F] rounded-full" />
+              )}
+            </button>
+          ))}
+        </div>
+        {/* Settings Icon Positioned Absolute or in header */}
+        <div className="absolute top-4 right-4">
+          <button onClick={() => setShowApiKeyModal(true)} className="text-gray-300 hover:text-gray-500">
+            <Settings2 className="w-5 h-5" />
+          </button>
+        </div>
+      </div>
+
+      <main className="max-w-lg mx-auto min-h-[calc(100vh-60px)] p-6 relative">
+
+        {error && (
+          <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-xl flex items-center justify-between gap-4">
+            <span className="text-red-600 text-sm font-medium">{error}</span>
+            <button onClick={() => setError(null)}><X className="w-4 h-4 text-red-400" /></button>
           </div>
         )}
 
-        {/* Hero & Upload Section */}
-        {!gradingResult && !isGrading && (
-          <div className="flex flex-col items-center justify-center min-h-[60vh] space-y-10 animate-in fade-in duration-700">
-            <div className="text-center space-y-4 max-w-2xl">
-              <Badge variant="secondary" className="px-4 py-2 rounded-full bg-white/50 backdrop-blur border border-indigo-100 text-indigo-700 shadow-sm mb-4">
-                ✨ Next-Gen AI Grading
-              </Badge>
-              <h1 className="text-5xl md:text-6xl font-extrabold tracking-tight text-gray-900">
-                Grade Exams in <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600">Seconds</span>
-              </h1>
-              <p className="text-xl text-gray-500 max-w-xl mx-auto leading-relaxed">
-                Upload photos of exam papers. Our AI instantly analyzes answers, calculates scores, and generates detailed feedback.
-              </p>
-            </div>
+        {/* Upload Tab Content (Home) */}
+        {activeTab === 'upload' && !gradingResult && !isGrading && (
+          <div className="h-full flex flex-col pt-8">
+            {/* Sketch-like Drop Zone */}
+            <div className="border border-red-200 rounded-xl p-8 h-[60vh] flex flex-col items-center justify-center relative overflow-hidden bg-[#FFFBFB]">
+              {/* Decorative corners similar to a view finder or sketch bounds could be added here */}
 
-            <Card className="w-full max-w-3xl glass-card border-2 border-dashed border-indigo-100/50 overflow-hidden hover:border-indigo-300 transition-colors duration-500">
-              <CardContent className="p-10">
-                <SmartUploader onUpload={handleUpload} />
-              </CardContent>
-            </Card>
+              <div className="w-full h-full flex flex-col items-center justify-center space-y-8">
+                <p className="text-3xl font-bold text-gray-700" style={{ fontFamily: 'cursive' }}>拖拽图片到这里</p>
+                <p className="text-gray-500 text-sm">1-5张支持 JPG, WEBP</p>
+                {/* Reusing SmartUploader logic but visually hidden input mostly */}
+                <div className="w-full">
+                  <SmartUploader onUpload={handleUpload} />
+                </div>
+              </div>
+            </div>
           </div>
         )}
 
         {/* Loading State */}
         {isGrading && (
-          <div className="flex flex-col items-center justify-center min-h-[50vh] animate-in fade-in duration-500">
-            <Card className="glass-card p-12 w-full max-w-xl text-center shadow-2xl shadow-indigo-500/20 border-t-4 border-indigo-500">
-              <div className="relative mb-8 mx-auto w-24 h-24">
-                <div className="absolute inset-0 bg-indigo-500/20 rounded-full animate-ping"></div>
-                <div className="relative bg-white p-6 rounded-full shadow-inner">
-                  <RefreshCw className="w-12 h-12 text-indigo-600 animate-spin" />
-                </div>
-              </div>
-              <h2 className="text-2xl font-bold text-gray-800 mb-2">Analyzing Responses...</h2>
-              <p className="text-gray-500 mb-8">AI is reading handwriting, checking logic, and calculating scores.</p>
-
-              <div className="w-full bg-gray-100 rounded-full h-2 overflow-hidden">
-                <div className="h-full bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 animate-progress w-full origin-left"></div>
-              </div>
-            </Card>
+          <div className="h-[60vh] flex flex-col items-center justify-center space-y-6">
+            <div className="relative w-20 h-20">
+              <div className="absolute inset-0 border-4 border-red-100 rounded-full"></div>
+              <div className="absolute inset-0 border-4 border-red-500 rounded-full border-t-transparent animate-spin"></div>
+            </div>
+            <p className="text-gray-600 font-medium animate-pulse">AI正在阅卷中...</p>
           </div>
         )}
 
-        {/* Results Dashboard */}
+        {/* Results View (Preserved functionality, simplified container) */}
         {gradingResult && (
-          <div className="space-y-8 animate-in slide-in-from-bottom-8 duration-700">
-
-            {/* Scorecard Hero */}
-            <div className={`relative overflow-hidden rounded-3xl bg-gradient-to-br ${getScoreColor(scorePercentage)} shadow-2xl shadow-indigo-500/30 text-white p-8 md:p-12`}>
-              <div className="absolute top-0 right-0 p-12 opacity-10">
-                <GraduationCap className="w-64 h-64" />
-              </div>
-
-              <div className="relative z-10 flex flex-col md:flex-row items-center justify-between gap-8">
-                <div className="text-center md:text-left space-y-2">
-                  <p className="text-indigo-100 font-medium tracking-wider uppercase text-sm">Total Score</p>
-                  <div className="flex items-baseline gap-3 justify-center md:justify-start">
-                    <span className="text-7xl font-bold tracking-tighter">{gradingResult.total_score}</span>
-                    <span className="text-3xl text-white/60 font-medium">/ {gradingResult.total_max_score}</span>
-                  </div>
-                  <div className="flex items-center gap-2 bg-white/20 backdrop-blur-md rounded-full px-4 py-1 w-fit mx-auto md:mx-0">
-                    <Sparkles className="w-4 h-4 text-yellow-300" />
-                    <span className="font-semibold text-sm">Accuracy: {scorePercentage}%</span>
-                  </div>
-                </div>
-
-                <div className="flex gap-4 md:gap-8 bg-black/10 backdrop-blur-sm rounded-2xl p-6 border border-white/10">
-                  <div className="text-center">
-                    <div className="text-3xl font-bold mb-1">{correctCount}</div>
-                    <div className="text-xs text-emerald-200 font-medium uppercase tracking-wide flex items-center gap-1 justify-center">
-                      <CheckCircle2 className="w-3 h-3" /> Correct
-                    </div>
-                  </div>
-                  <div className="w-px bg-white/20"></div>
-                  <div className="text-center">
-                    <div className="text-3xl font-bold mb-1">{partialCount}</div>
-                    <div className="text-xs text-amber-200 font-medium uppercase tracking-wide flex items-center gap-1 justify-center">
-                      <div className="w-2 h-2 rounded-full bg-amber-200"></div> Partial
-                    </div>
-                  </div>
-                  <div className="w-px bg-white/20"></div>
-                  <div className="text-center">
-                    <div className="text-3xl font-bold mb-1">{wrongCount}</div>
-                    <div className="text-xs text-rose-200 font-medium uppercase tracking-wide flex items-center gap-1 justify-center">
-                      <XCircle className="w-3 h-3" /> Wrong
-                    </div>
-                  </div>
+          <div className="space-y-6 pb-20 animate-in slide-in-from-bottom-4">
+            {/* Score Header */}
+            <div className={`bg-gradient-to-r ${getScoreColor(scorePercentage)} text-white p-6 rounded-2xl shadow-lg relative overflow-hidden`}>
+              <div className="relative z-10 flex flex-col items-center">
+                <span className="text-lg opacity-90 mb-1">本次得分</span>
+                <span className="text-6xl font-bold tracking-tight">{gradingResult.total_score}</span>
+                <div className="mt-4 flex gap-6 text-sm font-medium">
+                  <span>正确 {correctCount}</span>
+                  <span>错误 {wrongCount}</span>
                 </div>
               </div>
             </div>
 
-            <Tabs defaultValue="result" className="w-full">
-              <TabsList className="grid w-full max-w-md mx-auto grid-cols-2 h-14 bg-white/60 backdrop-blur border border-white/20 p-1 rounded-full shadow-lg mb-8">
-                <TabsTrigger value="result" className="rounded-full h-12 data-[state=active]:bg-indigo-600 data-[state=active]:text-white transition-all">
-                  Detailed Analysis
-                </TabsTrigger>
-                <TabsTrigger value="export" className="rounded-full h-12 data-[state=active]:bg-indigo-600 data-[state=active]:text-white transition-all">
-                  Export Report
-                </TabsTrigger>
-              </TabsList>
+            {/* AI Insights */}
+            {gradingResult.summary_tags.length > 0 && (
+              <Card className="border-l-4 border-l-purple-500 shadow-sm">
+                <CardHeader className="py-3 px-4">
+                  <CardTitle className="flex items-center gap-2 text-base text-gray-800">
+                    <BrainCircuit className="w-4 h-4 text-purple-600" />
+                    AI Insights
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="py-3 px-4">
+                  <div className="flex flex-wrap gap-2">
+                    {gradingResult.summary_tags.map((tag, index) => (
+                      <Badge key={index} variant="outline" className="px-3 py-1 text-xs bg-purple-50 text-purple-700 border-purple-200">
+                        {tag}
+                      </Badge>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
 
-              <TabsContent value="result" className="space-y-8">
-                {/* Insights */}
-                {gradingResult.summary_tags.length > 0 && (
-                  <Card className="glass-card border-l-4 border-l-purple-500">
-                    <CardHeader>
-                      <CardTitle className="flex items-center gap-2 text-lg text-gray-800">
-                        <BrainCircuit className="w-5 h-5 text-purple-600" />
-                        AI Insights
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="flex flex-wrap gap-2">
-                        {gradingResult.summary_tags.map((tag, index) => (
-                          <Badge key={index} variant="outline" className="px-4 py-2 text-sm bg-purple-50 text-purple-700 border-purple-200">
-                            {tag}
-                          </Badge>
-                        ))}
+            {/* Action Bar */}
+            <div className="flex gap-3 overflow-x-auto pb-2">
+              <Button onClick={handleReset} variant="outline" className="rounded-full border-red-200 text-red-600 hover:bg-red-50">
+                <RefreshCw className="w-4 h-4 mr-1" /> 再批改一张
+              </Button>
+            </div>
+
+            {/* Result Images List */}
+            <div className="space-y-4">
+              {images.map((imageUrl, index) => {
+                const dimensions = imageDimensions.get(index);
+                return (
+                  <div key={index} className="border rounded-xl overflow-hidden shadow-sm bg-white">
+                    <div className="p-3 border-b flex justify-between items-center bg-gray-50">
+                      <span className="font-medium text-gray-700">第 {index + 1} 页</span>
+                      <Badge variant="outline" className="bg-white">得分: {gradingResult.pages[index]?.page_score}</Badge>
+                    </div>
+                    <div className="relative">
+                      <img
+                        ref={(el) => {
+                          if (el) {
+                            el.onload = () => {
+                              if (el.naturalWidth && el.naturalHeight) {
+                                setImageDimensions((prev) => {
+                                  const next = new Map(prev);
+                                  next.set(index, { width: el.naturalWidth, height: el.naturalHeight });
+                                  return next;
+                                });
+                              }
+                            };
+                          }
+                        }}
+                        src={imageUrl}
+                        className="w-full h-auto"
+                      />
+                      <div className="absolute inset-0">
+                        <GradingOverlay
+                          imageUrl={imageUrl}
+                          questions={gradingResult.pages[index]?.questions || []}
+                          imageWidth={dimensions?.width || 600}
+                          imageHeight={dimensions?.height || 800}
+                        />
                       </div>
-                    </CardContent>
-                  </Card>
-                )}
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
 
-                {/* Pages Grid */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                  {images.map((imageUrl, index) => {
-                    const dimensions = imageDimensions.get(index);
-                    return (
-                      <Card key={index} className="glass-card overflow-hidden group">
-                        <CardHeader className="bg-gray-50/50 border-b border-gray-100 flex flex-row items-center justify-between p-4">
-                          <div className="flex items-center gap-3">
-                            <span className="w-8 h-8 rounded-lg bg-indigo-600 text-white font-bold flex items-center justify-center shadow-md shadow-indigo-500/30">
-                              {index + 1}
-                            </span>
-                            <span className="font-semibold text-gray-700">Page {index + 1}</span>
-                          </div>
-                          <Badge variant="secondary" className="bg-white shadow-sm border text-gray-600">
-                            Score: {gradingResult.pages[index]?.page_score || 0}
-                          </Badge>
-                        </CardHeader>
-                        <CardContent className="p-0 relative bg-gray-100">
-                          <div className="relative">
-                            <img
-                              ref={(el) => {
-                                if (el) {
-                                  el.onload = () => {
-                                    if (el.naturalWidth && el.naturalHeight) {
-                                      setImageDimensions((prev) => {
-                                        const next = new Map(prev);
-                                        next.set(index, { width: el.naturalWidth, height: el.naturalHeight });
-                                        return next;
-                                      });
-                                    }
-                                  };
-                                }
-                              }}
-                              src={imageUrl}
-                              alt={`Page ${index + 1}`}
-                              className="w-full h-auto object-contain"
-                            />
-                            <div className="absolute inset-0">
-                              <GradingOverlay
-                                imageUrl={imageUrl}
-                                questions={gradingResult.pages[index]?.questions || []}
-                                imageWidth={dimensions?.width || 600}
-                                imageHeight={dimensions?.height || 800}
-                              />
-                            </div>
-                          </div>
-                        </CardContent>
-                      </Card>
-                    );
-                  })}
-                </div>
-
-                <div className="flex justify-center pt-8">
-                  <Button
-                    onClick={handleReset}
-                    size="lg"
-                    className="gap-2 bg-white text-gray-700 border-gray-200 hover:bg-gray-50 hover:text-indigo-600 shadow-sm"
-                  >
-                    <RefreshCw className="w-4 h-4" />
-                    Grade Another Exam
-                  </Button>
-                </div>
-              </TabsContent>
-
-              <TabsContent value="export" className="mt-8">
-                <Card className="glass-card">
-                  <CardHeader>
-                    <CardTitle>Export Options</CardTitle>
-                    <CardDescription>Download the graded exam as an image to share with students or parents.</CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <ExportCanvas images={images} gradingResult={gradingResult} />
-                  </CardContent>
-                </Card>
-              </TabsContent>
-            </Tabs>
+            {/* Export Section */}
+            <div className="pt-4">
+              <h3 className="font-bold text-gray-800 mb-2">生成分析报告</h3>
+              <ExportCanvas images={images} gradingResult={gradingResult} />
+            </div>
           </div>
         )}
-      </main>
 
-      {/* Global CSS for Animations */}
-      <style jsx global>{`
-        @keyframes progress {
-          0% { transform: scaleX(0); }
-          50% { transform: scaleX(0.7); }
-          100% { transform: scaleX(1); }
-        }
-        .animate-progress {
-          animation: progress 20s ease-out forwards;
-        }
-      `}</style>
+        {/* Placeholder for other tabs */}
+        {(activeTab === 'tutor' || activeTab === 'bank' || activeTab === 'analysis') && !gradingResult && (
+          <div className="flex flex-col items-center justify-center h-[60vh] text-gray-400 space-y-4">
+            <BrainCircuit className="w-16 h-16 opacity-20" />
+            <p>该功能即将上线</p>
+          </div>
+        )}
+
+      </main>
     </div>
   );
 }
