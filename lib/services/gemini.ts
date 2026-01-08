@@ -120,9 +120,10 @@ class GeminiService {
       }
 
       return JSON.parse(jsonMatch[0]) as ExamGradingResult;
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error grading exam:', error);
-      throw new Error('Failed to grade exam');
+      const msg = error instanceof Error ? error.message : String(error);
+      throw new Error(`Failed to grade exam: ${msg}`);
     }
   }
 
