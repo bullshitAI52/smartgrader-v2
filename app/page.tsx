@@ -1,15 +1,17 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { SmartUploader } from '@/components/shared/smart-uploader';
 import { GradingOverlay } from '@/components/grading/grading-overlay';
 import { ExportCanvas } from '@/components/grading/export-canvas';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { CheckCircle2, XCircle, AlertCircle, RefreshCw, X } from 'lucide-react';
-import { ExamGradingResult } from '@/lib/services/gemini';
+import { Input } from '@/components/ui/input';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
+import { CheckCircle2, XCircle, AlertCircle, RefreshCw, X, Settings2, Sparkles, BrainCircuit, GraduationCap } from 'lucide-react';
+import { ExamGradingResult, geminiService } from '@/lib/services/gemini';
 
 export default function Home() {
   const [images, setImages] = useState<string[]>([]);
@@ -18,7 +20,33 @@ export default function Home() {
   const [error, setError] = useState<string | null>(null);
   const [imageDimensions, setImageDimensions] = useState<Map<number, { width: number; height: number }>>(new Map());
 
+  // API Key State
+  const [showApiKeyModal, setShowApiKeyModal] = useState(false);
+  const [apiKey, setApiKey] = useState('');
+
+  useEffect(() => {
+    const storedKey = localStorage.getItem('gemini_api_key');
+    if (storedKey) {
+      setApiKey(storedKey);
+      geminiService.setApiKey(storedKey);
+    } else {
+      setShowApiKeyModal(true);
+    }
+  }, []);
+
+  const handleSaveApiKey = () => {
+    if (!apiKey.trim()) return;
+    localStorage.setItem('gemini_api_key', apiKey);
+    geminiService.setApiKey(apiKey);
+    setShowApiKeyModal(false);
+  };
+
   const handleUpload = async (files: File[], totalMaxScore: number) => {
+    if (!apiKey) {
+      setShowApiKeyModal(true);
+      return;
+    }
+
     // 参数前置校验，提升鲁棒性
     if (!files || files.length === 0) {
       setError('请选择要上传的图片');
@@ -39,32 +67,22 @@ export default function Home() {
     setError(null);
 
     try {
-      const formData = new FormData();
-      files.forEach((file) => formData.append('images', file));
-      formData.append('totalMaxScore', totalMaxScore.toString());
-
-      const response = await fetch('/api/grade', {
-        method: 'POST',
-        body: formData,
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.error || 'Failed to grade exam');
-      }
-
-      const result: { success: boolean; data: ExamGradingResult; error?: string } = await response.json();
-
-      if (!result.success) {
-        throw new Error(result.error || 'Failed to grade exam');
-      }
+      // Direct client-side call
+      const result = await geminiService.generateExamGrading(files, totalMaxScore);
 
       setImages(files.map((file) => URL.createObjectURL(file)));
       setImageDimensions(new Map());
-      setGradingResult(result.data);
+      setGradingResult(result);
     } catch (err) {
       console.error('Error:', err);
-      setError(err instanceof Error ? err.message : 'An error occurred');
+      // More user friendly error
+      const message = err instanceof Error ? err.message : 'An error occurred during grading';
+      if (message.includes('API Key')) {
+        setError('Invalid or missing API Key. Please check your settings.');
+        setShowApiKeyModal(true);
+      } else {
+        setError(message);
+      }
     } finally {
       setIsGrading(false);
     }
@@ -97,216 +115,304 @@ export default function Home() {
     : 0;
 
   const getScoreColor = (percentage: number) => {
-    if (percentage >= 90) return 'from-green-500 to-emerald-600';
-    if (percentage >= 80) return 'from-blue-500 to-cyan-600';
-    if (percentage >= 70) return 'from-yellow-500 to-orange-500';
-    return 'from-red-500 to-rose-600';
+    if (percentage >= 90) return 'from-emerald-500 to-teal-600';
+    if (percentage >= 80) return 'from-blue-500 to-indigo-600';
+    if (percentage >= 70) return 'from-amber-500 to-orange-500';
+    return 'from-rose-500 to-red-600';
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 pt-16">
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 lg:py-8">
+    <div className="min-h-screen pt-16 pb-12 transition-colors duration-500">
+      {/* Header / Nav */}
+      <header className="fixed top-0 left-0 right-0 z-50 glass border-b border-white/20 px-6 py-4 flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <div className="bg-indigo-600 p-2 rounded-lg text-white shadow-lg shadow-indigo-500/30">
+            <BrainCircuit size={24} />
+          </div>
+          <span className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-indigo-700 to-violet-700 tracking-tight">
+            SmartGrader AI
+          </span>
+        </div>
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={() => setShowApiKeyModal(true)}
+          className="hover:bg-indigo-50 text-indigo-900 rounded-full"
+        >
+          <Settings2 className="w-5 h-5" />
+        </Button>
+      </header>
+
+      {/* API Key Modal */}
+      <Dialog open={showApiKeyModal} onOpenChange={setShowApiKeyModal}>
+        <DialogContent className="sm:max-w-md glass-card">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Sparkles className="w-5 h-5 text-indigo-500" />
+              Configuration Required
+            </DialogTitle>
+            <DialogDescription>
+              To process exams securely, please provide your Google Gemini API Key.
+              It will be stored locally in your browser.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex items-center space-x-2 py-4">
+            <div className="grid flex-1 gap-2">
+              <Input
+                id="apiKey"
+                type="password"
+                placeholder="Paste your Gemini API Key here..."
+                value={apiKey}
+                onChange={(e) => setApiKey(e.target.value)}
+                className="bg-white/50 border-indigo-100 focus:ring-indigo-500"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              type="submit"
+              onClick={handleSaveApiKey}
+              className="bg-indigo-600 hover:bg-indigo-700 text-white shadow-lg shadow-indigo-500/20"
+            >
+              Save & Continue
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
+        {/* Error Display */}
         {error && (
-          <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg flex items-center justify-between gap-4 animate-in fade-in slide-in-from-top-2">
+          <div className="p-4 bg-red-50/90 backdrop-blur border border-red-200 rounded-xl flex items-center justify-between gap-4 animate-in fade-in slide-in-from-top-4 shadow-sm">
             <div className="flex items-center gap-3">
-              <XCircle className="w-5 h-5 text-red-600 flex-shrink-0" />
+              <div className="p-2 bg-red-100 rounded-full">
+                <XCircle className="w-5 h-5 text-red-600" />
+              </div>
               <span className="text-red-800 font-medium">{error}</span>
             </div>
             <Button
               variant="ghost"
               size="sm"
               onClick={() => setError(null)}
-              className="h-8 w-8 p-0"
+              className="h-8 w-8 p-0 hover:bg-red-100 rounded-full"
             >
-              <X className="w-4 h-4" />
+              <X className="w-4 h-4 text-red-700" />
             </Button>
           </div>
         )}
 
+        {/* Hero & Upload Section */}
         {!gradingResult && !isGrading && (
-          <Card className="shadow-lg border-2">
-            <CardHeader className="bg-gradient-to-r from-blue-50 to-indigo-50 border-b">
-              <CardTitle className="text-xl flex items-center gap-2">
-                <div className="w-8 h-8 rounded-lg bg-blue-500 flex items-center justify-center">
-                  <CheckCircle2 className="w-5 h-5 text-white" />
-                </div>
-                上传试卷开始批改
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="pt-6">
-              <SmartUploader onUpload={handleUpload} />
-            </CardContent>
-          </Card>
+          <div className="flex flex-col items-center justify-center min-h-[60vh] space-y-10 animate-in fade-in duration-700">
+            <div className="text-center space-y-4 max-w-2xl">
+              <Badge variant="secondary" className="px-4 py-2 rounded-full bg-white/50 backdrop-blur border border-indigo-100 text-indigo-700 shadow-sm mb-4">
+                ✨ Next-Gen AI Grading
+              </Badge>
+              <h1 className="text-5xl md:text-6xl font-extrabold tracking-tight text-gray-900">
+                Grade Exams in <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600">Seconds</span>
+              </h1>
+              <p className="text-xl text-gray-500 max-w-xl mx-auto leading-relaxed">
+                Upload photos of exam papers. Our AI instantly analyzes answers, calculates scores, and generates detailed feedback.
+              </p>
+            </div>
+
+            <Card className="w-full max-w-3xl glass-card border-2 border-dashed border-indigo-100/50 overflow-hidden hover:border-indigo-300 transition-colors duration-500">
+              <CardContent className="p-10">
+                <SmartUploader onUpload={handleUpload} />
+              </CardContent>
+            </Card>
+          </div>
         )}
 
+        {/* Loading State */}
         {isGrading && (
-          <Card className="shadow-lg">
-            <CardContent className="py-16 lg:py-20">
-              <div className="flex flex-col items-center justify-center space-y-6">
-                <div className="relative">
-                  <div className="absolute inset-0 bg-blue-500/20 rounded-full animate-ping"></div>
-                  <RefreshCw className="w-16 h-16 text-blue-500 animate-spin" />
-                </div>
-                <div className="text-center space-y-2">
-                  <p className="text-xl font-semibold text-gray-800">正在批改试卷...</p>
-                  <p className="text-sm text-gray-500">AI 正在分析每一道题目，请稍候</p>
-                </div>
-                <div className="w-48 h-2 bg-gray-200 rounded-full overflow-hidden">
-                  <div className="h-full bg-gradient-to-r from-blue-500 to-purple-500 animate-[shimmer_2s_infinite]"></div>
+          <div className="flex flex-col items-center justify-center min-h-[50vh] animate-in fade-in duration-500">
+            <Card className="glass-card p-12 w-full max-w-xl text-center shadow-2xl shadow-indigo-500/20 border-t-4 border-indigo-500">
+              <div className="relative mb-8 mx-auto w-24 h-24">
+                <div className="absolute inset-0 bg-indigo-500/20 rounded-full animate-ping"></div>
+                <div className="relative bg-white p-6 rounded-full shadow-inner">
+                  <RefreshCw className="w-12 h-12 text-indigo-600 animate-spin" />
                 </div>
               </div>
-            </CardContent>
-          </Card>
+              <h2 className="text-2xl font-bold text-gray-800 mb-2">Analyzing Responses...</h2>
+              <p className="text-gray-500 mb-8">AI is reading handwriting, checking logic, and calculating scores.</p>
+
+              <div className="w-full bg-gray-100 rounded-full h-2 overflow-hidden">
+                <div className="h-full bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 animate-progress w-full origin-left"></div>
+              </div>
+            </Card>
+          </div>
         )}
 
+        {/* Results Dashboard */}
         {gradingResult && (
-          <Tabs defaultValue="result" className="space-y-6">
-            <TabsList className="grid w-full grid-cols-2 h-12">
-              <TabsTrigger value="result" className="data-[state=active]:bg-blue-600 data-[state=active]:text-white">
-                批改结果
-              </TabsTrigger>
-              <TabsTrigger value="export" className="data-[state=active]:bg-blue-600 data-[state=active]:text-white">
-                导出分享
-              </TabsTrigger>
-            </TabsList>
+          <div className="space-y-8 animate-in slide-in-from-bottom-8 duration-700">
 
-            <TabsContent value="result" className="space-y-6 mt-6">
-              <div className={`bg-gradient-to-r ${getScoreColor(scorePercentage)} text-white p-6 lg:p-8 rounded-xl shadow-lg`}>
-                <div className="text-center space-y-4">
-                  <p className="text-sm uppercase tracking-wider font-medium opacity-90">总分</p>
-                  <div className="flex flex-col sm:flex-row items-center justify-center gap-2 sm:gap-4">
-                    <span className="text-4xl sm:text-5xl lg:text-6xl font-bold tracking-tight">
-                      {gradingResult.total_score}
-                    </span>
-                    <span className="text-2xl sm:text-3xl text-white/80 font-medium">
-                      / {gradingResult.total_max_score}
-                    </span>
+            {/* Scorecard Hero */}
+            <div className={`relative overflow-hidden rounded-3xl bg-gradient-to-br ${getScoreColor(scorePercentage)} shadow-2xl shadow-indigo-500/30 text-white p-8 md:p-12`}>
+              <div className="absolute top-0 right-0 p-12 opacity-10">
+                <GraduationCap className="w-64 h-64" />
+              </div>
+
+              <div className="relative z-10 flex flex-col md:flex-row items-center justify-between gap-8">
+                <div className="text-center md:text-left space-y-2">
+                  <p className="text-indigo-100 font-medium tracking-wider uppercase text-sm">Total Score</p>
+                  <div className="flex items-baseline gap-3 justify-center md:justify-start">
+                    <span className="text-7xl font-bold tracking-tighter">{gradingResult.total_score}</span>
+                    <span className="text-3xl text-white/60 font-medium">/ {gradingResult.total_max_score}</span>
                   </div>
-                  <div className="inline-block bg-white/20 backdrop-blur-sm px-4 py-1 rounded-full text-sm font-medium">
-                    得分率: {scorePercentage}%
+                  <div className="flex items-center gap-2 bg-white/20 backdrop-blur-md rounded-full px-4 py-1 w-fit mx-auto md:mx-0">
+                    <Sparkles className="w-4 h-4 text-yellow-300" />
+                    <span className="font-semibold text-sm">Accuracy: {scorePercentage}%</span>
                   </div>
-                  <div className="flex items-center justify-center gap-4 sm:gap-8 mt-6 text-sm">
-                    <div className="flex items-center gap-2">
-                      <CheckCircle2 className="w-5 h-5" />
-                      <span className="font-medium">正确: {correctCount}</span>
+                </div>
+
+                <div className="flex gap-4 md:gap-8 bg-black/10 backdrop-blur-sm rounded-2xl p-6 border border-white/10">
+                  <div className="text-center">
+                    <div className="text-3xl font-bold mb-1">{correctCount}</div>
+                    <div className="text-xs text-emerald-200 font-medium uppercase tracking-wide flex items-center gap-1 justify-center">
+                      <CheckCircle2 className="w-3 h-3" /> Correct
                     </div>
-                    {partialCount > 0 && (
-                      <div className="flex items-center gap-2">
-                        <div className="w-5 h-5 rounded-full border-2 border-yellow-300"></div>
-                        <span className="font-medium">部分正确: {partialCount}</span>
-                      </div>
-                    )}
-                    <div className="flex items-center gap-2">
-                      <XCircle className="w-5 h-5" />
-                      <span className="font-medium">错误: {wrongCount}</span>
+                  </div>
+                  <div className="w-px bg-white/20"></div>
+                  <div className="text-center">
+                    <div className="text-3xl font-bold mb-1">{partialCount}</div>
+                    <div className="text-xs text-amber-200 font-medium uppercase tracking-wide flex items-center gap-1 justify-center">
+                      <div className="w-2 h-2 rounded-full bg-amber-200"></div> Partial
+                    </div>
+                  </div>
+                  <div className="w-px bg-white/20"></div>
+                  <div className="text-center">
+                    <div className="text-3xl font-bold mb-1">{wrongCount}</div>
+                    <div className="text-xs text-rose-200 font-medium uppercase tracking-wide flex items-center gap-1 justify-center">
+                      <XCircle className="w-3 h-3" /> Wrong
                     </div>
                   </div>
                 </div>
               </div>
+            </div>
 
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                {images.map((imageUrl, index) => {
-                  const dimensions = imageDimensions.get(index);
-                  return (
-                    <Card key={index} className="shadow-md overflow-hidden">
-                      <CardHeader className="bg-gradient-to-r from-gray-50 to-gray-100 border-b">
-                        <CardTitle className="flex items-center justify-between text-base sm:text-lg">
-                          <span className="flex items-center gap-2">
-                            <span className="w-6 h-6 rounded bg-blue-500 text-white text-xs flex items-center justify-center">
+            <Tabs defaultValue="result" className="w-full">
+              <TabsList className="grid w-full max-w-md mx-auto grid-cols-2 h-14 bg-white/60 backdrop-blur border border-white/20 p-1 rounded-full shadow-lg mb-8">
+                <TabsTrigger value="result" className="rounded-full h-12 data-[state=active]:bg-indigo-600 data-[state=active]:text-white transition-all">
+                  Detailed Analysis
+                </TabsTrigger>
+                <TabsTrigger value="export" className="rounded-full h-12 data-[state=active]:bg-indigo-600 data-[state=active]:text-white transition-all">
+                  Export Report
+                </TabsTrigger>
+              </TabsList>
+
+              <TabsContent value="result" className="space-y-8">
+                {/* Insights */}
+                {gradingResult.summary_tags.length > 0 && (
+                  <Card className="glass-card border-l-4 border-l-purple-500">
+                    <CardHeader>
+                      <CardTitle className="flex items-center gap-2 text-lg text-gray-800">
+                        <BrainCircuit className="w-5 h-5 text-purple-600" />
+                        AI Insights
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="flex flex-wrap gap-2">
+                        {gradingResult.summary_tags.map((tag, index) => (
+                          <Badge key={index} variant="outline" className="px-4 py-2 text-sm bg-purple-50 text-purple-700 border-purple-200">
+                            {tag}
+                          </Badge>
+                        ))}
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
+
+                {/* Pages Grid */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                  {images.map((imageUrl, index) => {
+                    const dimensions = imageDimensions.get(index);
+                    return (
+                      <Card key={index} className="glass-card overflow-hidden group">
+                        <CardHeader className="bg-gray-50/50 border-b border-gray-100 flex flex-row items-center justify-between p-4">
+                          <div className="flex items-center gap-3">
+                            <span className="w-8 h-8 rounded-lg bg-indigo-600 text-white font-bold flex items-center justify-center shadow-md shadow-indigo-500/30">
                               {index + 1}
                             </span>
-                            第 {index + 1} 页
-                          </span>
-                          <Badge variant="secondary" className="font-semibold">
-                            得分: {gradingResult.pages[index]?.page_score || 0}
+                            <span className="font-semibold text-gray-700">Page {index + 1}</span>
+                          </div>
+                          <Badge variant="secondary" className="bg-white shadow-sm border text-gray-600">
+                            Score: {gradingResult.pages[index]?.page_score || 0}
                           </Badge>
-                        </CardTitle>
-                      </CardHeader>
-                      <CardContent className="p-0">
-                        <div className="relative">
-                          <img
-                            ref={(el) => {
-                              if (el) {
-                                el.onload = () => {
-                                  if (el.naturalWidth && el.naturalHeight) {
-                                    setImageDimensions((prev) => {
-                                      const next = new Map(prev);
-                                      next.set(index, { width: el.naturalWidth, height: el.naturalHeight });
-                                      return next;
-                                    });
-                                  }
-                                };
-                              }
-                            }}
-                            src={imageUrl}
-                            alt={`Page ${index + 1}`}
-                            className="w-full"
-                            style={{ display: 'none' }}
-                          />
-                          <GradingOverlay
-                            imageUrl={imageUrl}
-                            questions={gradingResult.pages[index]?.questions || []}
-                            imageWidth={dimensions?.width || 600}
-                            imageHeight={dimensions?.height || 800}
-                          />
-                        </div>
-                      </CardContent>
-                    </Card>
-                  );
-                })}
-              </div>
+                        </CardHeader>
+                        <CardContent className="p-0 relative bg-gray-100">
+                          <div className="relative">
+                            <img
+                              ref={(el) => {
+                                if (el) {
+                                  el.onload = () => {
+                                    if (el.naturalWidth && el.naturalHeight) {
+                                      setImageDimensions((prev) => {
+                                        const next = new Map(prev);
+                                        next.set(index, { width: el.naturalWidth, height: el.naturalHeight });
+                                        return next;
+                                      });
+                                    }
+                                  };
+                                }
+                              }}
+                              src={imageUrl}
+                              alt={`Page ${index + 1}`}
+                              className="w-full h-auto object-contain"
+                            />
+                            <div className="absolute inset-0">
+                              <GradingOverlay
+                                imageUrl={imageUrl}
+                                questions={gradingResult.pages[index]?.questions || []}
+                                imageWidth={dimensions?.width || 600}
+                                imageHeight={dimensions?.height || 800}
+                              />
+                            </div>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    );
+                  })}
+                </div>
 
-              {gradingResult.summary_tags.length > 0 && (
-                <Card className="shadow-md">
-                  <CardHeader className="bg-gradient-to-r from-purple-50 to-pink-50 border-b">
-                    <CardTitle className="flex items-center gap-2 text-lg">
-                      <AlertCircle className="w-5 h-5 text-purple-600" />
-                      学情分析
-                    </CardTitle>
+                <div className="flex justify-center pt-8">
+                  <Button
+                    onClick={handleReset}
+                    size="lg"
+                    className="gap-2 bg-white text-gray-700 border-gray-200 hover:bg-gray-50 hover:text-indigo-600 shadow-sm"
+                  >
+                    <RefreshCw className="w-4 h-4" />
+                    Grade Another Exam
+                  </Button>
+                </div>
+              </TabsContent>
+
+              <TabsContent value="export" className="mt-8">
+                <Card className="glass-card">
+                  <CardHeader>
+                    <CardTitle>Export Options</CardTitle>
+                    <CardDescription>Download the graded exam as an image to share with students or parents.</CardDescription>
                   </CardHeader>
-                  <CardContent className="pt-6">
-                    <div className="flex flex-wrap gap-2">
-                      {gradingResult.summary_tags.map((tag, index) => (
-                        <Badge key={index} variant="secondary" className="px-3 py-1.5 text-sm">
-                          {tag}
-                        </Badge>
-                      ))}
-                    </div>
+                  <CardContent>
+                    <ExportCanvas images={images} gradingResult={gradingResult} />
                   </CardContent>
                 </Card>
-              )}
-
-              <div className="flex justify-center">
-                <Button
-                  onClick={handleReset}
-                  variant="outline"
-                  size="lg"
-                  className="gap-2"
-                >
-                  <RefreshCw className="w-4 h-4" />
-                  批改新试卷
-                </Button>
-              </div>
-            </TabsContent>
-
-            <TabsContent value="export" className="space-y-6 mt-6">
-              <Card className="shadow-md">
-                <CardHeader className="bg-gradient-to-r from-green-50 to-emerald-50 border-b">
-                  <CardTitle>导出试卷结果</CardTitle>
-                </CardHeader>
-                <CardContent className="pt-6">
-                  <ExportCanvas images={images} gradingResult={gradingResult} />
-                </CardContent>
-              </Card>
-            </TabsContent>
-          </Tabs>
+              </TabsContent>
+            </Tabs>
+          </div>
         )}
       </main>
 
-      <style jsx>{`
-        @keyframes shimmer {
-          0% { transform: translateX(-100%); }
-          100% { transform: translateX(100%); }
+      {/* Global CSS for Animations */}
+      <style jsx global>{`
+        @keyframes progress {
+          0% { transform: scaleX(0); }
+          50% { transform: scaleX(0.7); }
+          100% { transform: scaleX(1); }
+        }
+        .animate-progress {
+          animation: progress 20s ease-out forwards;
         }
       `}</style>
     </div>

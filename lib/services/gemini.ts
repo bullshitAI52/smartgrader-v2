@@ -27,15 +27,21 @@ export interface ExamGradingResult {
 class GeminiService {
   private flashModel: GenerativeModel | null = null;
   private proModel: GenerativeModel | null = null;
+  private apiKey: string | null = null;
+
+  setApiKey(key: string) {
+    this.apiKey = key;
+    this.flashModel = null;
+    this.proModel = null;
+  }
 
   private ensureInitialized() {
     if (!this.flashModel || !this.proModel) {
-      const apiKey = process.env.GOOGLE_AI_API_KEY;
-      if (!apiKey) {
-        throw new Error('GOOGLE_AI_API_KEY is not set');
+      if (!this.apiKey) {
+        throw new Error('Please provides Google Gemini API Key');
       }
-      
-      const genAI = new GoogleGenerativeAI(apiKey);
+
+      const genAI = new GoogleGenerativeAI(this.apiKey);
       this.flashModel = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
       this.proModel = genAI.getGenerativeModel({ model: 'gemini-1.5-pro' });
     }
@@ -46,7 +52,7 @@ class GeminiService {
     totalMaxScore: number = 100
   ): Promise<ExamGradingResult> {
     this.ensureInitialized();
-    
+
     const imageParts = await Promise.all(
       images.map(async (image) => {
         const base64 = await this.fileToBase64(image);
@@ -101,12 +107,12 @@ class GeminiService {
       const result = await this.proModel!.generateContent([prompt, ...imageParts]);
       const response = await result.response;
       const text = response.text();
-      
+
       const jsonMatch = text.match(/\{[\s\S]*\}/);
       if (!jsonMatch) {
         throw new Error('Failed to parse JSON from AI response');
       }
-      
+
       const parsedResult = JSON.parse(jsonMatch[0]);
       return parsedResult as ExamGradingResult;
     } catch (error) {
@@ -129,7 +135,7 @@ class GeminiService {
 
   async generateSocraticTutoring(question: string, studentAnswer?: string): Promise<string> {
     this.ensureInitialized();
-    
+
     const prompt = `
       You are a Socratic tutor. A student is working on this problem: "${question}"
       ${studentAnswer ? `Their answer is: "${studentAnswer}"` : ''}
@@ -158,7 +164,7 @@ class GeminiService {
     analytical: string;
   }> {
     this.ensureInitialized();
-    
+
     const prompt = `
       Generate three different style essays on the topic: "${essayTopic}"
       
@@ -174,12 +180,12 @@ class GeminiService {
       const result = await this.proModel!.generateContent(prompt);
       const response = await result.response;
       const text = response.text();
-      
+
       const jsonMatch = text.match(/\{[\s\S]*\}/);
       if (!jsonMatch) {
         throw new Error('Failed to parse JSON from AI response');
       }
-      
+
       return JSON.parse(jsonMatch[0]);
     } catch (error) {
       console.error('Error generating essay examples:', error);
