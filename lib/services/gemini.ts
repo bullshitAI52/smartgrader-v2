@@ -71,8 +71,7 @@ class GeminiService {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${this.qwenApiKey}`,
-        'Content-Type': 'application/json',
-        'X-DashScope-WorkSpace': 'modal'
+        'Content-Type': 'application/json'
       },
       body: JSON.stringify({
         model: 'qwen-vl-max',
