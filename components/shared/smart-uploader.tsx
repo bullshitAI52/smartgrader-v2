@@ -26,14 +26,16 @@ export function SmartUploader({ onUpload, maxImages = 5 }: SmartUploaderProps) {
   const [showScoreDialog, setShowScoreDialog] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [uploadError, setUploadError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const dropZoneRef = useRef<HTMLDivElement>(null);
 
   const processFiles = useCallback(async (files: File[]) => {
     if (images.length + files.length > maxImages) {
-      setError(`最多只能上传 ${maxImages} 张图片`);
+      setUploadError(`最多只能上传 ${maxImages} 张图片`);
       return;
     }
+
 
     setError(null);
 
@@ -75,6 +77,7 @@ export function SmartUploader({ onUpload, maxImages = 5 }: SmartUploaderProps) {
 
   const handleFileSelect = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
+    setUploadError(null);
     await processFiles(files);
   }, [processFiles]);
 

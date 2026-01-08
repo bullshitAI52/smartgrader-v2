@@ -19,14 +19,20 @@ export default function Home() {
   const [imageDimensions, setImageDimensions] = useState<Map<number, { width: number; height: number }>>(new Map());
 
   const handleUpload = async (files: File[], totalMaxScore: number) => {
+    if (!files || files.length === 0) {
+      setError('请选择要上传的图片');
+      return;
+    }
+    
+    if (totalMaxScore < 1 || totalMaxScore > 1000) {
+      setError('满分值必须在 1-1000 之间');
+      return;
+    }
+
     setIsGrading(true);
     setError(null);
     
     try {
-      const imageUrls = files.map((file) => URL.createObjectURL(file));
-      setImages(imageUrls);
-      setImageDimensions(new Map());
-
       const formData = new FormData();
       files.forEach((file) => formData.append('images', file));
       formData.append('totalMaxScore', totalMaxScore.toString());
@@ -47,6 +53,8 @@ export default function Home() {
         throw new Error(result.error || 'Failed to grade exam');
       }
 
+      setImages(files.map((file) => URL.createObjectURL(file)));
+      setImageDimensions(new Map());
       setGradingResult(result.data);
     } catch (err) {
       console.error('Error:', err);
