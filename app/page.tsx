@@ -18,7 +18,7 @@ export default function Home() {
   const [error, setError] = useState<string | null>(null);
   const [imageDimensions, setImageDimensions] = useState<Map<number, { width: number; height: number }>>(new Map());
 
-  const handleUpload = async (files: File[], totalMaxScore: number) => {
+  const handleUpload = async (files: File[], totalMaxScore: number) => {\n    // 参数前置校验，提升鲁棒性\n    if (!files || files.length === 0) {\n      setError('请上传图片');\n      return;\n    }\n    if (files.length > 5) {\n      setError('最多上传 5 张图片');\n      return;\n    }\n    if (!Number.isFinite(totalMaxScore) || totalMaxScore < 1 || totalMaxScore > 1000) {\n      setError('总分应在 1-1000 之间');\n      return;\n    }\n"}" , 
     if (!files || files.length === 0) {
       setError('请选择要上传的图片');
       return;
