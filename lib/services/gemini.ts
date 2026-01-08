@@ -43,7 +43,8 @@ class GeminiService {
 
       const genAI = new GoogleGenerativeAI(this.apiKey);
       this.flashModel = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
-      this.proModel = genAI.getGenerativeModel({ model: 'gemini-1.5-pro' });
+      // Fallback to flash for pro tasks as it's more widely available and sufficient/faster
+      this.proModel = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
     }
   }
 
