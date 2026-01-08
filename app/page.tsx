@@ -10,7 +10,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
-import { XCircle, RefreshCw, X, Settings2, Sparkles, BrainCircuit, GraduationCap, ScanText, FileText, BookOpen, Copy, UploadCloud } from 'lucide-react';
+import { CheckCircle2, XCircle, RefreshCw, X, Settings2, Sparkles, BrainCircuit, GraduationCap, ScanText, FileText, BookOpen, Copy, UploadCloud } from 'lucide-react';
 import { ExamGradingResult, geminiService } from '@/lib/services/gemini';
 import { cn } from '@/lib/utils';
 
@@ -27,6 +27,7 @@ export default function Home() {
   const [gradingImages, setGradingImages] = useState<string[]>([]);
   const [gradingResult, setGradingResult] = useState<ExamGradingResult | null>(null);
   const [imageDimensions, setImageDimensions] = useState<Map<number, { width: number; height: number }>>(new Map());
+  const [currentPage, setCurrentPage] = useState(0);
 
   // -- OCR State --
   const [ocrImage, setOcrImage] = useState<string | null>(null);
@@ -316,88 +317,164 @@ export default function Home() {
 
         {/* --- Tab: Grading --- */}
         {activeTab === 'grading' && (
-          <div className="animate-in fade-in max-w-5xl mx-auto space-y-8">
-            {!gradingResult && !loading ? (
-              <div className="py-12">
-                <div className="text-center mb-10">
-                  <h2 className="text-3xl font-bold text-gray-800 mb-3">智能试卷批改</h2>
-                  <p className="text-gray-500">上传试卷图片，AI自动判分并生成分析报告</p>
+          <div className="animate-in fade-in h-[calc(100vh-140px)] flex flex-col">
+
+            {/* Main Content Area - Split View */}
+            <div className="flex-1 grid grid-cols-1 md:grid-cols-2 gap-6 min-h-0">
+
+              {/* Left Panel: Original / Upload */}
+              <div className="flex flex-col bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+                <div className="px-5 py-3 border-b border-gray-100 bg-gray-50 flex items-center justify-between">
+                  <span className="font-semibold text-gray-700 flex items-center gap-2">
+                    <FileText className="w-4 h-4 text-blue-500" />
+                    原始文件
+                  </span>
+                  {gradingResult && (
+                    <Badge variant="outline" className="bg-white text-gray-500">
+                      {gradingImages.length > 0 ? `Page ${currentPage + 1}/${gradingImages.length}` : ''}
+                    </Badge>
+                  )}
                 </div>
-                <Card className="border-2 border-dashed border-indigo-100 bg-indigo-50/50 shadow-none">
-                  <CardContent className="pt-10 pb-10">
-                    <SmartUploader onUpload={handleGradingUpload} />
-                  </CardContent>
-                </Card>
+
+                <div className="flex-1 overflow-y-auto p-4 flex items-center justify-center bg-gray-50/50 relative">
+                  {!gradingResult ? (
+                    <div className="w-full h-full flex flex-col">
+                      {/* Using SmartUploader for input */}
+                      <SmartUploader onUpload={handleGradingUpload} />
+                    </div>
+                  ) : (
+                    <div className="relative w-full h-full flex items-center justify-center">
+                      {/* Show Original Image for Current Page */}
+                      {gradingImages[currentPage] && (
+                        <img
+                          src={gradingImages[currentPage]}
+                          className="max-w-full max-h-full object-contain shadow-sm border border-gray-100 rounded-lg"
+                          alt="Original"
+                        />
+                      )}
+                    </div>
+                  )}
+
+                  {/* Loading Overlay */}
+                  {loading && (
+                    <div className="absolute inset-0 z-10 bg-white/80 backdrop-blur-sm flex flex-col items-center justify-center">
+                      <RefreshCw className="w-12 h-12 text-indigo-600 animate-spin mb-4" />
+                      <h3 className="text-xl font-bold text-gray-800">正在智能阅卷...</h3>
+                      <p className="text-gray-500 mt-2">AI 正在深度分析 {gradingImages.length} 页试卷</p>
+                    </div>
+                  )}
+                </div>
               </div>
-            ) : (
-              <>
-                {loading && (
-                  <div className="h-[60vh] flex flex-col items-center justify-center">
-                    <RefreshCw className="w-12 h-12 text-indigo-600 animate-spin mb-4" />
-                    <h3 className="text-xl font-bold text-gray-800">正在批改试卷...</h3>
-                  </div>
-                )}
 
-                {!loading && gradingResult && (
-                  <div className="space-y-6">
-                    <div className="bg-white p-6 rounded-2xl border border-gray-200 shadow-sm flex items-center justify-between">
-                      <div className="flex items-center gap-6">
-                        <div>
-                          <p className="text-xs text-gray-500 uppercase font-bold tracking-wider">总分</p>
-                          <p className="text-5xl font-bold text-indigo-900">{gradingResult.total_score} <span className="text-xl text-gray-400 font-normal">/ {gradingResult.total_max_score}</span></p>
-                        </div>
-                        <div className="h-10 w-px bg-gray-200"></div>
-                        <div className="flex gap-4">
-                          <Badge className="bg-green-100 text-green-700 hover:bg-green-100 px-3 py-1 text-sm">
-                            正确 {gradingResult.pages.reduce((acc, p) => acc + p.questions.filter(q => q.status === 'correct').length, 0)}
-                          </Badge>
-                          <Badge className="bg-red-100 text-red-700 hover:bg-red-100 px-3 py-1 text-sm">
-                            错误 {gradingResult.pages.reduce((acc, p) => acc + p.questions.filter(q => q.status === 'wrong').length, 0)}
-                          </Badge>
-                        </div>
-                      </div>
-                      <Button onClick={resetGrading} variant="outline">批改下一份</Button>
+              {/* Right Panel: Graded Result */}
+              <div className="flex flex-col bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+                <div className="px-5 py-3 border-b border-gray-100 bg-gray-50 flex items-center justify-between">
+                  <span className="font-semibold text-gray-700 flex items-center gap-2">
+                    <CheckCircle2 className="w-4 h-4 text-green-500" />
+                    批改后图片
+                  </span>
+                  {gradingResult && (
+                    <div className="flex gap-2">
+                      <Badge className="bg-green-100 text-green-700 hover:bg-green-100">
+                        得分: {gradingResult.pages[currentPage]?.page_score || 0}
+                      </Badge>
                     </div>
+                  )}
+                </div>
 
-                    <div className="grid md:grid-cols-2 gap-6">
-                      {gradingImages.map((imgUrl, idx) => (
-                        <Card key={idx} className="overflow-hidden border-gray-200 shadow-sm">
-                          <CardHeader className="py-3 bg-gray-50 border-b border-gray-100 flex flex-row items-center justify-between">
-                            <span className="font-semibold text-gray-700">第 {idx + 1} 页</span>
-                            <Badge variant="secondary">得分: {gradingResult.pages[idx].page_score}</Badge>
-                          </CardHeader>
-                          <div className="relative">
-                            <img
-                              src={imgUrl}
-                              className="w-full h-auto"
-                              ref={el => {
-                                if (el?.naturalWidth) {
-                                  setImageDimensions(prev => new Map(prev).set(idx, { width: el.naturalWidth, height: el.naturalHeight }));
-                                }
-                              }}
+                <div className="flex-1 overflow-y-auto p-4 flex items-center justify-center bg-gray-50/50 relative">
+                  {!gradingResult ? (
+                    <div className="text-center text-gray-400">
+                      <div className="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                        <Sparkles className="w-10 h-10 opacity-30" />
+                      </div>
+                      <p>等待开始批改...</p>
+                      <p className="text-sm mt-2 opacity-60">请在左侧上传试卷并点击"开始批改"</p>
+                    </div>
+                  ) : (
+                    <div className="relative w-full h-full flex items-center justify-center">
+                      {/* Show Graded Overlay Image for Current Page */}
+                      {gradingImages[currentPage] && (
+                        <div className="relative max-w-full max-h-full">
+                          <img
+                            src={gradingImages[currentPage]}
+                            className="max-w-full max-h-full object-contain shadow-sm border border-gray-100 rounded-lg opacity-0"
+                            onLoad={(e) => e.currentTarget.classList.remove('opacity-0')}
+                            ref={el => {
+                              if (el?.naturalWidth) {
+                                setImageDimensions(prev => new Map(prev).set(currentPage, { width: el.naturalWidth, height: el.naturalHeight }));
+                              }
+                            }}
+                          />
+                          {/* The Overlay */}
+                          <div className="absolute inset-0 pointer-events-none">
+                            <GradingOverlay
+                              imageUrl={gradingImages[currentPage]}
+                              questions={gradingResult.pages[currentPage]?.questions || []}
+                              imageWidth={imageDimensions.get(currentPage)?.width || 600}
+                              imageHeight={imageDimensions.get(currentPage)?.height || 800}
                             />
-                            <div className="absolute inset-0">
-                              <GradingOverlay
-                                imageUrl={imgUrl}
-                                questions={gradingResult.pages[idx].questions}
-                                imageWidth={imageDimensions.get(idx)?.width || 600}
-                                imageHeight={imageDimensions.get(idx)?.height || 800}
-                              />
-                            </div>
                           </div>
-                        </Card>
-                      ))}
+                        </div>
+                      )}
                     </div>
+                  )}
+                </div>
+              </div>
 
-                    <div className="mt-8">
-                      <h3 className="font-bold mb-4">分析报告</h3>
-                      <div className="bg-white p-4 rounded-xl border border-gray-200">
-                        <ExportCanvas images={gradingImages} gradingResult={gradingResult} />
-                      </div>
+            </div>
+
+            {/* Footer Actions (Only visible when results available) */}
+            {gradingResult && (
+              <div className="mt-6 flex flex-col md:flex-row items-center justify-between gap-4 bg-white p-4 rounded-xl border border-gray-200 shadow-sm animate-in slide-in-from-bottom-4">
+
+                {/* Summary Info */}
+                <div className="flex items-center gap-6">
+                  <div className="text-center md:text-left">
+                    <div className="text-xs text-gray-500 uppercase font-bold tracking-wider">总分</div>
+                    <div className="text-3xl font-bold text-indigo-900">
+                      {gradingResult.total_score} <span className="text-lg text-gray-400 font-normal">/ {gradingResult.total_max_score}</span>
                     </div>
                   </div>
-                )}
-              </>
+                  <div className="h-8 w-px bg-gray-200 hidden md:block"></div>
+                  <div className="flex gap-3">
+                    <div className="px-3 py-1 bg-green-50 text-green-700 rounded-lg text-sm font-medium">
+                      正确 {gradingResult.pages.reduce((acc, p) => acc + p.questions.filter(q => q.status === 'correct').length, 0)}
+                    </div>
+                    <div className="px-3 py-1 bg-red-50 text-red-700 rounded-lg text-sm font-medium">
+                      错误 {gradingResult.pages.reduce((acc, p) => acc + p.questions.filter(q => q.status === 'wrong').length, 0)}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Pagination & Tools */}
+                <div className="flex items-center gap-3">
+                  <Button
+                    variant="secondary"
+                    disabled={currentPage === 0}
+                    onClick={() => setCurrentPage(p => Math.max(0, p - 1))}
+                  >
+                    上一页
+                  </Button>
+                  <span className="text-sm font-medium text-gray-600 min-w-[3rem] text-center">
+                    {currentPage + 1} / {gradingImages.length}
+                  </span>
+                  <Button
+                    variant="secondary"
+                    disabled={currentPage === gradingImages.length - 1}
+                    onClick={() => setCurrentPage(p => Math.min(gradingImages.length - 1, p + 1))}
+                  >
+                    下一页
+                  </Button>
+
+                  <div className="w-px h-8 bg-gray-200 mx-2"></div>
+
+                  <Button onClick={resetGrading} variant="outline" className="text-red-600 hover:text-red-700 hover:bg-red-50 border-red-100">
+                    <RefreshCw className="w-4 h-4 mr-2" />
+                    重新批改
+                  </Button>
+                </div>
+              </div>
             )}
           </div>
         )}
