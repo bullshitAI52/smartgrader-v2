@@ -468,7 +468,7 @@ export default function Home() {
                 <div className="px-5 py-3 border-b border-gray-100 bg-gray-50 flex items-center justify-between">
                   <span className="font-semibold text-gray-700 flex items-center gap-2">
                     <CheckCircle2 className="w-4 h-4 text-green-500" />
-                    批改后图片
+                    批改结果
                   </span>
                   {gradingResult && (
                     <div className="flex gap-2">
@@ -479,41 +479,131 @@ export default function Home() {
                   )}
                 </div>
 
-                <div className="flex-1 overflow-y-auto p-4 flex items-center justify-center bg-gray-50/50 relative">
+                <div className="flex-1 overflow-y-auto custom-scrollbar">
                   {!gradingResult ? (
-                    <div className="text-center text-gray-400">
-                      <div className="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                        <Sparkles className="w-10 h-10 opacity-30" />
+                    <div className="h-full flex items-center justify-center text-center text-gray-400 p-4">
+                      <div>
+                        <div className="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                          <Sparkles className="w-10 h-10 opacity-30" />
+                        </div>
+                        <p>等待开始批改...</p>
+                        <p className="text-sm mt-2 opacity-60">请在左侧上传试卷并点击"开始批改"</p>
                       </div>
-                      <p>等待开始批改...</p>
-                      <p className="text-sm mt-2 opacity-60">请在左侧上传试卷并点击"开始批改"</p>
                     </div>
                   ) : (
-                    <div className="relative w-full h-full flex items-center justify-center">
-                      {/* Show Graded Overlay Image for Current Page */}
-                      {gradingImages[currentPage] && (
-                        <div className="relative max-w-full max-h-full">
-                          <img
-                            src={gradingImages[currentPage]}
-                            className="max-w-full max-h-full object-contain shadow-sm border border-gray-100 rounded-lg opacity-0"
-                            onLoad={(e) => e.currentTarget.classList.remove('opacity-0')}
-                            ref={el => {
-                              if (el?.naturalWidth) {
-                                setImageDimensions(prev => new Map(prev).set(currentPage, { width: el.naturalWidth, height: el.naturalHeight }));
-                              }
-                            }}
-                          />
-                          {/* The Overlay */}
-                          <div className="absolute inset-0 pointer-events-none">
-                            <GradingOverlay
-                              imageUrl={gradingImages[currentPage]}
-                              questions={gradingResult.pages[currentPage]?.questions || []}
-                              imageWidth={imageDimensions.get(currentPage)?.width || 600}
-                              imageHeight={imageDimensions.get(currentPage)?.height || 800}
+                    <div className="flex flex-col gap-4 p-4">
+                      {/* Graded Image with Overlay */}
+                      <div className="relative w-full flex items-center justify-center bg-gray-50/50 rounded-lg p-4">
+                        {gradingImages[currentPage] && (
+                          <div className="relative max-w-full">
+                            <img
+                              src={gradingImages[currentPage]}
+                              className="max-w-full object-contain shadow-sm border border-gray-100 rounded-lg opacity-0"
+                              onLoad={(e) => e.currentTarget.classList.remove('opacity-0')}
+                              ref={el => {
+                                if (el?.naturalWidth) {
+                                  setImageDimensions(prev => new Map(prev).set(currentPage, { width: el.naturalWidth, height: el.naturalHeight }));
+                                }
+                              }}
                             />
+                            {/* The Overlay */}
+                            <div className="absolute inset-0 pointer-events-none">
+                              <GradingOverlay
+                                imageUrl={gradingImages[currentPage]}
+                                questions={gradingResult.pages[currentPage]?.questions || []}
+                                imageWidth={imageDimensions.get(currentPage)?.width || 600}
+                                imageHeight={imageDimensions.get(currentPage)?.height || 800}
+                              />
+                            </div>
                           </div>
-                        </div>
-                      )}
+                        )}
+                      </div>
+
+                      {/* Error Analysis Section */}
+                      {(() => {
+                        const wrongQuestions = gradingResult.pages[currentPage]?.questions.filter(
+                          q => q.status === 'wrong' || q.status === 'partial'
+                        ) || [];
+
+                        if (wrongQuestions.length === 0) {
+                          return (
+                            <div className="bg-green-50 border border-green-200 rounded-lg p-6 text-center">
+                              <CheckCircle2 className="w-12 h-12 text-green-500 mx-auto mb-3" />
+                              <p className="text-green-800 font-semibold text-lg">全部正确！</p>
+                              <p className="text-green-600 text-sm mt-1">本页所有题目都答对了 🎉</p>
+                            </div>
+                          );
+                        }
+
+                        return (
+                          <div className="space-y-3">
+                            <div className="flex items-center justify-between px-1">
+                              <h3 className="font-bold text-gray-800 flex items-center gap-2">
+                                <XCircle className="w-5 h-5 text-red-500" />
+                                错题分析
+                              </h3>
+                              <Badge variant="destructive" className="bg-red-100 text-red-700 hover:bg-red-100">
+                                {wrongQuestions.length} 道错题
+                              </Badge>
+                            </div>
+
+                            {wrongQuestions.map((question) => (
+                              <Card key={question.id} className="border-l-4 border-l-red-400 shadow-sm hover:shadow-md transition-shadow">
+                                <CardHeader className="pb-3">
+                                  <div className="flex items-start justify-between gap-3">
+                                    <CardTitle className="text-base font-bold text-gray-900 flex items-center gap-2">
+                                      <span className="flex items-center justify-center w-7 h-7 rounded-full bg-red-100 text-red-700 text-sm font-bold">
+                                        {question.id}
+                                      </span>
+                                      第 {question.id} 题
+                                    </CardTitle>
+                                    <div className="flex flex-col items-end gap-1">
+                                      <Badge
+                                        variant={question.status === 'wrong' ? 'destructive' : 'secondary'}
+                                        className={question.status === 'wrong' ? 'bg-red-500' : 'bg-orange-500'}
+                                      >
+                                        {question.status === 'wrong' ? '错误' : '部分正确'}
+                                      </Badge>
+                                      <span className="text-sm font-semibold text-red-600">
+                                        -{question.deduction} 分
+                                      </span>
+                                    </div>
+                                  </div>
+                                </CardHeader>
+                                <CardContent className="pt-0">
+                                  <div className="space-y-2">
+                                    <div className="flex items-center gap-2 text-sm">
+                                      <span className="text-gray-500">得分:</span>
+                                      <span className="font-semibold text-gray-900">
+                                        {question.score_obtained} / {question.score_max}
+                                      </span>
+                                      {question.error_type && (
+                                        <>
+                                          <span className="text-gray-300">•</span>
+                                          <Badge variant="outline" className="text-xs">
+                                            {question.error_type === 'calculation' && '计算错误'}
+                                            {question.error_type === 'concept' && '概念错误'}
+                                            {question.error_type === 'logic' && '逻辑错误'}
+                                          </Badge>
+                                        </>
+                                      )}
+                                    </div>
+                                    <div className="bg-gray-50 rounded-lg p-4 border border-gray-100">
+                                      <p className="text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
+                                        <GraduationCap className="w-4 h-4 text-indigo-600" />
+                                        详细解析：
+                                      </p>
+                                      <p className="text-sm text-gray-800 leading-relaxed whitespace-pre-wrap">
+                                        {question.analysis}
+                                      </p>
+                                    </div>
+                                  </div>
+                                </CardContent>
+                              </Card>
+                            ))}
+                          </div>
+                        );
+                      })()}
                     </div>
                   )}
                 </div>
