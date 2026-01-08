@@ -142,18 +142,33 @@ class GeminiService {
   // New Method: OCR
   async recognizeText(image: File): Promise<string> {
     this.ensureInitialized();
+    const genAI = new GoogleGenerativeAI(this.apiKey!);
     const base64 = await this.fileToBase64(image);
     const part = { inlineData: { data: base64, mimeType: image.type } };
 
     const prompt = "Please extract all the text from this image exactly as it appears. Preserve formatting where possible.";
 
-    const result = await this.proModel!.generateContent([prompt, part]);
-    return result.response.text();
+    const modelsToTry = ['gemini-1.5-flash-001', 'gemini-1.5-pro-002', 'gemini-1.5-pro'];
+    let lastError = null;
+
+    for (const modelName of modelsToTry) {
+      try {
+        const model = genAI.getGenerativeModel({ model: modelName });
+        const result = await model.generateContent([prompt, part]);
+        return result.response.text();
+      } catch (error: any) {
+        console.warn(`OCR Model ${modelName} failed:`, error);
+        lastError = error;
+      }
+    }
+    const msg = lastError instanceof Error ? lastError.message : String(lastError);
+    throw new Error(`OCR failed on all models. Last error: ${msg}`);
   }
 
   // New Method: Homework Solver
   async solveHomework(image: File, instruction?: string): Promise<string> {
     this.ensureInitialized();
+    const genAI = new GoogleGenerativeAI(this.apiKey!);
     const base64 = await this.fileToBase64(image);
     const part = { inlineData: { data: base64, mimeType: image.type } };
 
@@ -165,8 +180,21 @@ class GeminiService {
       If it's a math problem, show calculation steps.
     `;
 
-    const result = await this.proModel!.generateContent([prompt, part]);
-    return result.response.text();
+    const modelsToTry = ['gemini-1.5-pro-002', 'gemini-1.5-flash-001', 'gemini-1.5-pro'];
+    let lastError = null;
+
+    for (const modelName of modelsToTry) {
+      try {
+        const model = genAI.getGenerativeModel({ model: modelName });
+        const result = await model.generateContent([prompt, part]);
+        return result.response.text();
+      } catch (error: any) {
+        console.warn(`Homework Model ${modelName} failed:`, error);
+        lastError = error;
+      }
+    }
+    const msg = lastError instanceof Error ? lastError.message : String(lastError);
+    throw new Error(`Homework solving failed on all models. Last error: ${msg}`);
   }
 
   private async fileToBase64(file: File): Promise<string> {
