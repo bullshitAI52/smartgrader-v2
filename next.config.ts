@@ -1,7 +1,16 @@
 import type { NextConfig } from "next";
 
+const isProd = process.env.NODE_ENV === 'production';
+
 const nextConfig: NextConfig = {
-  /* config options here */
+  output: 'export',
+  // Configure 'basePath' for GitHub Pages deployment
+  // The repository name 'smartgrader' is used as the base path
+  basePath: isProd ? '/smartgrader' : '',
+  // Disable server-side image optimization since GitHub Pages serves static content
+  images: {
+    unoptimized: true,
+  },
 };
 
 export default nextConfig;
