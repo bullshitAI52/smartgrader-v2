@@ -18,20 +18,26 @@ export default function Home() {
   const [error, setError] = useState<string | null>(null);
   const [imageDimensions, setImageDimensions] = useState<Map<number, { width: number; height: number }>>(new Map());
 
-  const handleUpload = async (files: File[], totalMaxScore: number) => {\n    // 参数前置校验，提升鲁棒性\n    if (!files || files.length === 0) {\n      setError('请上传图片');\n      return;\n    }\n    if (files.length > 5) {\n      setError('最多上传 5 张图片');\n      return;\n    }\n    if (!Number.isFinite(totalMaxScore) || totalMaxScore < 1 || totalMaxScore > 1000) {\n      setError('总分应在 1-1000 之间');\n      return;\n    }\n"}" , 
+  const handleUpload = async (files: File[], totalMaxScore: number) => {
+    // 参数前置校验，提升鲁棒性
     if (!files || files.length === 0) {
       setError('请选择要上传的图片');
       return;
     }
-    
-    if (totalMaxScore < 1 || totalMaxScore > 1000) {
+
+    if (files.length > 5) {
+      setError('最多上传 5 张图片');
+      return;
+    }
+
+    if (!Number.isFinite(totalMaxScore) || totalMaxScore < 1 || totalMaxScore > 1000) {
       setError('满分值必须在 1-1000 之间');
       return;
     }
 
     setIsGrading(true);
     setError(null);
-    
+
     try {
       const formData = new FormData();
       files.forEach((file) => formData.append('images', file));
@@ -48,7 +54,7 @@ export default function Home() {
       }
 
       const result: { success: boolean; data: ExamGradingResult; error?: string } = await response.json();
-      
+
       if (!result.success) {
         throw new Error(result.error || 'Failed to grade exam');
       }
@@ -86,7 +92,7 @@ export default function Home() {
     0
   ) || 0;
 
-  const scorePercentage = gradingResult 
+  const scorePercentage = gradingResult
     ? Math.round((gradingResult.total_score / gradingResult.total_max_score) * 100)
     : 0;
 
@@ -106,9 +112,9 @@ export default function Home() {
               <XCircle className="w-5 h-5 text-red-600 flex-shrink-0" />
               <span className="text-red-800 font-medium">{error}</span>
             </div>
-            <Button 
-              variant="ghost" 
-              size="sm" 
+            <Button
+              variant="ghost"
+              size="sm"
               onClick={() => setError(null)}
               className="h-8 w-8 p-0"
             >
@@ -271,9 +277,9 @@ export default function Home() {
               )}
 
               <div className="flex justify-center">
-                <Button 
-                  onClick={handleReset} 
-                  variant="outline" 
+                <Button
+                  onClick={handleReset}
+                  variant="outline"
                   size="lg"
                   className="gap-2"
                 >
@@ -296,7 +302,7 @@ export default function Home() {
           </Tabs>
         )}
       </main>
-      
+
       <style jsx>{`
         @keyframes shimmer {
           0% { transform: translateX(-100%); }
