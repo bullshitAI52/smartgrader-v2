@@ -62,7 +62,8 @@ class GeminiService {
     let url = '';
     // Determine the strategy based on the build type
     // If it's a Static Export (GitHub Pages), we MUST use a public CORS proxy because we have no backend.
-    if (process.env.NEXT_PUBLIC_IS_STATIC === 'true') {
+    const isStaticHost = typeof window !== 'undefined' && window.location.hostname.includes('github.io');
+    if (process.env.NEXT_PUBLIC_IS_STATIC === 'true' || isStaticHost) {
       const proxyUrl = 'https://corsproxy.io/?';
       const targetUrl = 'https://dashscope.aliyuncs.com/api/v1/services/aigc/multimodal-generation/generation';
       url = proxyUrl + encodeURIComponent(targetUrl);
