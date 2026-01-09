@@ -59,15 +59,20 @@ class GeminiService {
       }
     ];
 
-    // Use a CORS proxy to bypass browser restrictions on GitHub Pages
-    // Note: In a real production app with a backend, you should proxy this through your own server.
-    const proxyUrl = 'https://corsproxy.io/?';
-    const targetUrl = 'https://dashscope.aliyuncs.com/api/v1/services/aigc/multimodal-generation/generation';
+    let url = '';
+    // Determine the strategy based on the build type
+    // If it's a Static Export (GitHub Pages), we MUST use a public CORS proxy because we have no backend.
+    if (process.env.NEXT_PUBLIC_IS_STATIC === 'true') {
+      const proxyUrl = 'https://corsproxy.io/?';
+      const targetUrl = 'https://dashscope.aliyuncs.com/api/v1/services/aigc/multimodal-generation/generation';
+      url = proxyUrl + encodeURIComponent(targetUrl);
+    }
+    // If it's a Server Build (Self-Hosted, Vercel) or Local Dev, we use our own secure internal proxy
+    else {
+      url = '/api/proxy/qwen';
+    }
 
-    // Increase timeout by handling it? Fetch doesn't support timeout natively easily, 
-    // but the error is 504 Gateway Timeout from the proxy or server.
-    // Compressing image is the best fix.
-    const response = await fetch(proxyUrl + encodeURIComponent(targetUrl), {
+    const response = await fetch(url, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${this.qwenApiKey}`,
