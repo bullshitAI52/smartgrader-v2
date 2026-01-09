@@ -70,10 +70,29 @@ export default function Home() {
   useEffect(() => {
     // 强制使用 qwen
     setProvider('qwen');
+
+    // Priority 1: Check URL Parameters (allows sharing link with key: /?key=sk-...)
+    const params = new URLSearchParams(window.location.search);
+    const urlKey = params.get('key') || params.get('apiKey');
+
+    // Priority 2: Check Local Storage
     const storedKey = localStorage.getItem('qwen_api_key');
-    if (storedKey) {
-      setApiKey(storedKey);
-      geminiService.setApiKey(storedKey, 'qwen');
+
+    // Priority 3: Check Environment Variable (Build time)
+    const envKey = process.env.NEXT_PUBLIC_QWEN_API_KEY;
+
+    const finalKey = urlKey || storedKey || envKey;
+
+    if (finalKey) {
+      setApiKey(finalKey);
+      geminiService.setApiKey(finalKey, 'qwen');
+
+      // If we got it from URL, save it to persistent storage for next time
+      if (urlKey) {
+        localStorage.setItem('qwen_api_key', urlKey);
+        // Optional: Clean the URL so the key isn't visible in the address bar
+        // window.history.replaceState({}, '', window.location.pathname);
+      }
     } else {
       setShowApiKeyModal(true);
     }
