@@ -495,6 +495,130 @@ class GeminiService {
       throw new Error('Failed to generate essay examples');
     }
   }
+
+  // New Method: Generate Chinese Essay
+  async generateEssay(params: {
+    topic: string;
+    image?: File;
+    grade: string;
+    essayType: string;
+  }): Promise<string> {
+    const { topic, image, grade, essayType } = params;
+
+    // Grade level mapping
+    const gradeLabels: Record<string, string> = {
+      '1': '小学一年级', '2': '小学二年级', '3': '小学三年级',
+      '4': '小学四年级', '5': '小学五年级', '6': '小学六年级',
+      '7': '初中一年级', '8': '初中二年级', '9': '初中三年级',
+      '10': '高中一年级', '11': '高中二年级', '12': '高中三年级',
+    };
+
+    // Essay type mapping with writing guidance
+    const essayTypePrompts: Record<string, string> = {
+      narrative: '记叙文：要求以叙述为主，描写生动，情节完整，感情真挚。注意时间、地点、人物、事件的起因、经过和结果。',
+      argumentative: '议论文：要求提出明确的论点，运用充分的论据，进行有力的论证。结构清晰，论证严密，逻辑性强。',
+      expository: '说明文：要求客观准确地说明事物的特征、原理或过程。语言平实，条理清楚，层次分明。',
+      descriptive: '描写文：要求通过生动细腻的描写，展现人物、景物或场景的特点。注重细节刻画，运用修辞手法。',
+      practical: '应用文：要求符合特定格式和实用目的，如书信、通知、倡议书等。格式规范，内容实用。',
+      imaginative: '想象作文：要求发挥想象力进行创作，情节新奇有趣，富有创意。合理想象，主题积极向上。',
+    };
+
+    const gradeLabel = gradeLabels[grade] || '小学六年级';
+    const essayGuidance = essayTypePrompts[essayType] || essayTypePrompts.narrative;
+
+    // Qwen Provider
+    if (this.activeProvider === 'qwen') {
+      if (!this.qwenApiKey) throw new Error('请先设置通义千问 API Key');
+
+      const basePrompt = `
+你是一位经验丰富的语文老师，擅长指导学生写作。请根据以下要求创作一篇作文：
+
+【年级水平】${gradeLabel}
+【作文类型】${essayGuidance}
+
+【写作要求】
+1. 语言应符合${gradeLabel}学生的水平，用词恰当，句式自然
+2. 字数要求：
+   - 小学低年级（1-2年级）：200-300字
+   - 小学中年级（3-4年级）：300-400字
+   - 小学高年级（5-6年级）：400-500字
+   - 初中：500-600字
+   - 高中：800-1000字
+3. 结构完整，层次清晰
+4. 内容要有真情实感，贴近学生生活
+5. 适当运用修辞手法，使文章生动有趣
+6. 标点符号使用正确
+
+【重要】直接输出作文正文，不要添加标题、作者署名或任何说明性文字。
+      `;
+
+      const finalTopic = image ? '' : topic;
+      const finalPrompt = image
+        ? `${basePrompt}\n\n请根据图片中的内容确定作文主题，然后创作作文。`
+        : `${basePrompt}\n\n【作文主题】${finalTopic}`;
+
+      try {
+        return await this.callQwenVL(finalPrompt, image ? [image] : []);
+      } catch (e: any) {
+        throw new Error(`作文生成失败（通义千问）: ${e.message}`);
+      }
+    }
+
+    // Google Gemini Provider
+    this.ensureInitialized();
+    const genAI = new GoogleGenerativeAI(this.apiKey!);
+
+    const basePrompt = `
+你是一位经验丰富的语文老师，擅长指导学生写作。请根据以下要求创作一篇作文：
+
+【年级水平】${gradeLabel}
+【作文类型】${essayGuidance}
+
+【写作要求】
+1. 语言应符合${gradeLabel}学生的水平，用词恰当，句式自然
+2. 字数要求：
+   - 小学低年级（1-2年级）：200-300字
+   - 小学中年级（3-4年级）：300-400字
+   - 小学高年级（5-6年级）：400-500字
+   - 初中：500-600字
+   - 高中：800-1000字
+3. 结构完整，层次清晰
+4. 内容要有真情实感，贴近学生生活
+5. 适当运用修辞手法，使文章生动有趣
+6. 标点符号使用正确
+
+【重要】直接输出作文正文，不要添加标题、作者署名或任何说明性文字。
+    `;
+
+    const modelsToTry = ['gemini-2.0-flash-exp', 'gemini-1.5-pro-002', 'gemini-1.5-flash-001'];
+    let lastError = null;
+
+    for (const modelName of modelsToTry) {
+      try {
+        const model = genAI.getGenerativeModel({ model: modelName });
+
+        if (image) {
+          // With image: extract topic from image first
+          const base64 = await this.fileToBase64(image);
+          const imagePart = { inlineData: { data: base64, mimeType: image.type } };
+          const finalPrompt = `${basePrompt}\n\n请根据图片中的内容确定作文主题，然后创作作文。`;
+          const result = await model.generateContent([finalPrompt, imagePart]);
+          return result.response.text();
+        } else {
+          // Text-only topic
+          const finalPrompt = `${basePrompt}\n\n【作文主题】${topic}`;
+          const result = await model.generateContent(finalPrompt);
+          return result.response.text();
+        }
+      } catch (error: any) {
+        console.warn(`Essay generation with ${modelName} failed:`, error);
+        lastError = error;
+      }
+    }
+
+    const msg = lastError instanceof Error ? lastError.message : String(lastError);
+    throw new Error(`作文生成失败: ${msg}`);
+  }
 }
 
 export const geminiService = new GeminiService();

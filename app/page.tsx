@@ -11,9 +11,11 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
-import { CheckCircle2, XCircle, RefreshCw, X, Settings2, Sparkles, BrainCircuit, GraduationCap, ScanText, FileText, BookOpen, Copy, UploadCloud } from 'lucide-react';
+import { CheckCircle2, XCircle, RefreshCw, X, Settings2, Sparkles, BrainCircuit, GraduationCap, ScanText, FileText, BookOpen, Copy, UploadCloud, PenTool } from 'lucide-react';
 import { ExamGradingResult, geminiService } from '@/lib/services/gemini';
 import { cn } from '@/lib/utils';
+import { EssayGenerator } from '@/components/essay/essay-generator';
+import { EssayResult } from '@/components/essay/essay-result';
 
 export default function Home() {
   const [activeTab, setActiveTab] = useState('grading'); // Default to Grading
@@ -41,6 +43,12 @@ export default function Home() {
   const [hwFile, setHwFile] = useState<File | null>(null);
   const [hwQuestion, setHwQuestion] = useState('');
   const [hwResult, setHwResult] = useState<string | null>(null);
+
+  // -- Essay State --
+  const [essayTopic, setEssayTopic] = useState('');
+  const [essayGrade, setEssayGrade] = useState('6');
+  const [essayType, setEssayType] = useState('narrative');
+  const [essayResult, setEssayResult] = useState<string | null>(null);
 
   // -- Init --
   useEffect(() => {
@@ -217,6 +225,41 @@ export default function Home() {
     }
   };
 
+  // 4. Essay Handler
+  const handleEssayGenerate = async (params: {
+    topic: string;
+    image?: File;
+    grade: string;
+    essayType: string;
+  }) => {
+    if (!checkApiKey()) return;
+
+    setLoading(true);
+    setError(null);
+    try {
+      // Store parameters for display
+      setEssayTopic(params.topic || '图片主题');
+      setEssayGrade(params.grade);
+      setEssayType(params.essayType);
+
+      const essay = await geminiService.generateEssay(params);
+      setEssayResult(essay);
+    } catch (err: any) {
+      const message = err instanceof Error ? err.message : 'An error occurred during essay generation';
+      if (message.includes('Failed to fetch')) {
+        setError('网络连接失败。如使用 Google 模型，请开启全局代理；推荐切换至"阿里通义千问"。');
+      } else {
+        setError(message);
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const resetEssay = () => {
+    setEssayResult(null);
+  };
+
   // -- Render Helpers --
 
   return (
@@ -301,6 +344,7 @@ export default function Home() {
               { id: 'ocr', label: '文字识别', icon: ScanText },
               { id: 'grading', label: '试卷批改', icon: FileText },
               { id: 'homework', label: '作业辅导', icon: BookOpen },
+              { id: 'essay', label: '语文作文', icon: PenTool },
             ].map(tab => (
               <button
                 key={tab.id}
@@ -739,6 +783,49 @@ export default function Home() {
                 )}
               </div>
             </div>
+          </div>
+        )}
+
+        {/* --- Tab: Essay --- */}
+        {activeTab === 'essay' && (
+          <div className="animate-in fade-in h-[calc(100vh-140px)] flex flex-col">
+            {!essayResult ? (
+              <div className="flex-1 overflow-y-auto custom-scrollbar">
+                <div className="max-w-4xl mx-auto py-6">
+                  <div className="mb-6 text-center">
+                    <div className="inline-flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-indigo-100 to-purple-100 rounded-full mb-3">
+                      <PenTool className="w-5 h-5 text-indigo-600" />
+                      <span className="font-bold text-indigo-900">AI 作文助手</span>
+                    </div>
+                    <p className="text-gray-600">输入主题或上传图片，AI 将根据年级和作文类型为你生成优质作文</p>
+                  </div>
+                  <EssayGenerator onGenerate={handleEssayGenerate} isLoading={loading} />
+                </div>
+              </div>
+            ) : (
+              <div className="flex-1 overflow-y-auto custom-scrollbar">
+                <div className="max-w-5xl mx-auto py-6">
+                  <div className="mb-4">
+                    <Button
+                      onClick={resetEssay}
+                      variant="outline"
+                      className="gap-2"
+                    >
+                      <RefreshCw className="w-4 h-4" />
+                      重新创作
+                    </Button>
+                  </div>
+                  <EssayResult
+                    essay={essayResult}
+                    topic={essayTopic}
+                    grade={essayGrade}
+                    essayType={essayType}
+                    onRegenerate={() => handleEssayGenerate({ topic: essayTopic, grade: essayGrade, essayType })}
+                    isRegenerating={loading}
+                  />
+                </div>
+              </div>
+            )}
           </div>
         )}
 
