@@ -11,7 +11,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
-import { CheckCircle2, XCircle, RefreshCw, X, Settings2, Sparkles, BrainCircuit, GraduationCap, ScanText, FileText, BookOpen, Copy, UploadCloud, PenTool, Lightbulb } from 'lucide-react';
+import { CheckCircle2, XCircle, RefreshCw, X, Settings2, Sparkles, BrainCircuit, GraduationCap, ScanText, FileText, BookOpen, Copy, UploadCloud, PenTool, Lightbulb, Download, Table } from 'lucide-react';
+import ReactMarkdown from 'react-markdown';
 import { ExamGradingResult, geminiService } from '@/lib/services/gemini';
 import { cn } from '@/lib/utils';
 import { EssayGenerator } from '@/components/essay/essay-generator';
@@ -37,7 +38,9 @@ export default function Home() {
   // -- OCR State --
   const [ocrImages, setOcrImages] = useState<string[]>([]);
   const [ocrResults, setOcrResults] = useState<string[]>([]);
+  const [ocrTableResults, setOcrTableResults] = useState<string[]>([]);
   const [ocrCurrentPage, setOcrCurrentPage] = useState(0);
+  const [ocrMode, setOcrMode] = useState<'text' | 'table'>('text');
 
   // -- Homework State --
   const [hwImage, setHwImage] = useState<string | null>(null);
@@ -57,6 +60,9 @@ export default function Home() {
   const [guideGrade, setGuideGrade] = useState('6');
   const [guideType, setGuideType] = useState('narrative');
   const [guideResult, setGuideResult] = useState<string | null>(null);
+
+  // -- Essay Mode State --
+  const [essayMode, setEssayMode] = useState<'generate' | 'guide'>('generate');
 
   // -- Init --
   useEffect(() => {
@@ -152,7 +158,13 @@ export default function Home() {
 
     // Reset state for new batch
     setOcrImages(files.map(f => URL.createObjectURL(f)));
-    setOcrResults(new Array(files.length).fill(''));
+
+    if (ocrMode === 'text') {
+      setOcrResults(new Array(files.length).fill(''));
+    } else {
+      setOcrTableResults(new Array(files.length).fill(''));
+    }
+
     setOcrCurrentPage(0);
 
     setLoading(true);
@@ -163,7 +175,11 @@ export default function Home() {
       const results = await Promise.all(
         files.map(async (file) => {
           try {
-            return await geminiService.recognizeText(file);
+            if (ocrMode === 'text') {
+              return await geminiService.recognizeText(file);
+            } else {
+              return await geminiService.recognizeTable(file);
+            }
           } catch (err: any) {
             console.error('OCR Error:', err);
             let msg = err instanceof Error ? err.message : String(err);
@@ -174,12 +190,48 @@ export default function Home() {
           }
         })
       );
-      setOcrResults(results);
+
+      if (ocrMode === 'text') {
+        setOcrResults(results);
+      } else {
+        setOcrTableResults(results);
+      }
+
     } catch (err: any) {
       const message = err instanceof Error ? err.message : 'An error occurred during OCR';
       setError(message);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const downloadTableAsCsv = (markdownTable: string, index: number) => {
+    try {
+      // Simple Markdown to CSV converter
+      const lines = markdownTable.split('\n').filter(line => line.trim().startsWith('|'));
+      const csvContent = lines.map(line => {
+        // Remove leading/trailing pipes and split
+        const cells = line.trim().replace(/^\||\|$/g, '').split('|');
+        // Clean whitespace and quote if necessary
+        return cells.map(cell => {
+          let c = cell.trim();
+          if (c.includes(',') || c.includes('"')) {
+            c = `"${c.replace(/"/g, '""')}"`;
+          }
+          return c;
+        }).join(',');
+      }).join('\n');
+
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `table_export_${index + 1}.csv`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    } catch (e) {
+      setError('导出失败，请尝试复制内容手动粘贴');
     }
   };
 
@@ -365,7 +417,6 @@ export default function Home() {
               { id: 'grading', label: '试卷批改', icon: FileText },
               { id: 'homework', label: '作业辅导', icon: BookOpen },
               { id: 'essay', label: '语文作文', icon: PenTool },
-              { id: 'guide', label: '作文引导', icon: Lightbulb },
             ].map(tab => (
               <button
                 key={tab.id}
@@ -408,6 +459,31 @@ export default function Home() {
             <div className="flex flex-col gap-4 h-full">
               <div className="text-sm font-semibold text-gray-600 flex items-center justify-between">
                 <span className="flex items-center gap-2"><UploadCloud className="w-4 h-4" /> 原图预览</span>
+
+                {/* Mode Switcher */}
+                <div className="bg-gray-100 p-0.5 rounded-lg flex items-center">
+                  <button
+                    onClick={() => { setOcrMode('text'); setOcrImages([]); setOcrResults([]); setOcrTableResults([]); }}
+                    className={cn(
+                      "px-3 py-1 rounded-md text-xs font-medium transition-all flex items-center gap-1",
+                      ocrMode === 'text' ? "bg-white text-indigo-600 shadow-sm" : "text-gray-500 hover:text-gray-900"
+                    )}
+                  >
+                    <FileText className="w-3 h-3" />
+                    普通文本
+                  </button>
+                  <button
+                    onClick={() => { setOcrMode('table'); setOcrImages([]); setOcrResults([]); setOcrTableResults([]); }}
+                    className={cn(
+                      "px-3 py-1 rounded-md text-xs font-medium transition-all flex items-center gap-1",
+                      ocrMode === 'table' ? "bg-white text-emerald-600 shadow-sm" : "text-gray-500 hover:text-gray-900"
+                    )}
+                  >
+                    <Table className="w-3 h-3" />
+                    图片表格
+                  </button>
+                </div>
+
                 {ocrImages.length > 1 && (
                   <div className="flex items-center gap-2 text-xs">
                     <Button variant="ghost" size="sm" onClick={() => setOcrCurrentPage(p => Math.max(0, p - 1))} disabled={ocrCurrentPage === 0}>上一页</Button>
@@ -428,8 +504,8 @@ export default function Home() {
                   <img src={ocrImages[ocrCurrentPage]} className="w-full h-full object-contain p-4" />
                 ) : (
                   <div className="text-center text-gray-400">
-                    <ScanText className="w-16 h-16 mx-auto mb-3 opacity-30" />
-                    <p className="font-medium">点击上传图片 (支持批量)</p>
+                    {ocrMode === 'text' ? <ScanText className="w-16 h-16 mx-auto mb-3 opacity-30" /> : <Table className="w-16 h-16 mx-auto mb-3 opacity-30" />}
+                    <p className="font-medium">点击上传{ocrMode === 'text' ? '文本' : '表格'}图片 (支持批量)</p>
                     <p className="text-xs mt-1">支持 JPG, PNG, WEBP</p>
                   </div>
                 )}
@@ -440,38 +516,63 @@ export default function Home() {
             <div className="flex flex-col gap-4 h-full">
               <div className="flex items-center justify-between">
                 <div className="text-sm font-semibold text-gray-600 flex items-center gap-2">
-                  <FileText className="w-4 h-4" /> 识别结果
+                  {ocrMode === 'text' ? <FileText className="w-4 h-4" /> : <Table className="w-4 h-4" />}
+                  {ocrMode === 'text' ? '识别结果' : '表格还原'}
                 </div>
-                {ocrResults[ocrCurrentPage] && (
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="h-8 gap-1 text-indigo-600 hover:text-indigo-700 hover:bg-indigo-50"
-                    onClick={() => navigator.clipboard.writeText(ocrResults[ocrCurrentPage])}
-                  >
-                    <Copy className="w-3 h-3" /> 复制当前页
-                  </Button>
-                )}
+                <div className="flex gap-2">
+                  {(ocrMode === 'text' ? ocrResults[ocrCurrentPage] : ocrTableResults[ocrCurrentPage]) && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-8 gap-1 text-indigo-600 hover:text-indigo-700 hover:bg-indigo-50"
+                      onClick={() => navigator.clipboard.writeText(ocrMode === 'text' ? ocrResults[ocrCurrentPage] : ocrTableResults[ocrCurrentPage])}
+                    >
+                      <Copy className="w-3 h-3" /> 复制
+                    </Button>
+                  )}
+                  {ocrMode === 'table' && ocrTableResults[ocrCurrentPage] && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="h-8 gap-1 text-emerald-600 border-emerald-200 hover:bg-emerald-50"
+                      onClick={() => downloadTableAsCsv(ocrTableResults[ocrCurrentPage], ocrCurrentPage)}
+                    >
+                      <Download className="w-3 h-3" /> 导出CSV
+                    </Button>
+                  )}
+                </div>
               </div>
-              <div className="flex-1 border border-gray-200 rounded-xl bg-white shadow-sm overflow-hidden relative">
+              <div className="flex-1 border border-gray-200 rounded-xl bg-white shadow-sm overflow-hidden relative font-mono text-sm">
                 {loading ? (
                   <div className="absolute inset-0 flex items-center justify-center bg-white/80 z-20">
                     <div className="flex flex-col items-center gap-2 text-indigo-600">
                       <RefreshCw className="w-8 h-8 animate-spin" />
-                      <span className="text-sm font-medium">AI 正在识别 {ocrImages.length} 页文字...</span>
+                      <span className="text-sm font-medium">AI 正在识别 {ocrImages.length} 页{ocrMode === 'text' ? '文字' : '表格'}...</span>
                     </div>
                   </div>
                 ) : null}
-                <textarea
-                  className="w-full h-full p-6 resize-none focus:outline-none text-gray-700 leading-relaxed custom-scrollbar"
-                  placeholder="识别到的文字将显示在这里..."
-                  value={ocrResults[ocrCurrentPage] || ''}
-                  onChange={(e) => {
-                    const newResults = [...ocrResults];
-                    newResults[ocrCurrentPage] = e.target.value;
-                    setOcrResults(newResults);
-                  }}
-                />
+
+                {ocrMode === 'text' ? (
+                  <textarea
+                    className="w-full h-full p-6 resize-none focus:outline-none text-gray-700 leading-relaxed custom-scrollbar block"
+                    placeholder="识别到的文字将显示在这里..."
+                    value={ocrResults[ocrCurrentPage] || ''}
+                    onChange={(e) => {
+                      const newResults = [...ocrResults];
+                      newResults[ocrCurrentPage] = e.target.value;
+                      setOcrResults(newResults);
+                    }}
+                  />
+                ) : (
+                  <div className="w-full h-full p-6 overflow-auto custom-scrollbar prose prose-sm max-w-none">
+                    {ocrTableResults[ocrCurrentPage] ? (
+                      <ReactMarkdown>{ocrTableResults[ocrCurrentPage]}</ReactMarkdown>
+                    ) : (
+                      <div className="text-gray-400 italic">识别到的表格将显示在这里...</div>
+                    )}
+                  </div>
+                )}
+
               </div>
             </div>
           </div>
@@ -810,17 +911,63 @@ export default function Home() {
         {/* --- Tab: Essay --- */}
         {activeTab === 'essay' && (
           <div className="animate-in fade-in h-[calc(100vh-140px)] flex flex-col">
-            {!essayResult ? (
+
+            {/* Mode Switcher - Float it or place at top */}
+            {!essayResult && !guideResult && (
+              <div className="flex justify-center mt-4 mb-2">
+                <div className="bg-white p-1 rounded-lg border border-gray-200 shadow-sm flex items-center gap-1">
+                  <button
+                    onClick={() => setEssayMode('generate')}
+                    className={cn(
+                      "px-4 py-2 rounded-md text-sm font-medium transition-all flex items-center gap-2",
+                      essayMode === 'generate' ? "bg-indigo-50 text-indigo-600 shadow-sm ring-1 ring-indigo-200" : "text-gray-500 hover:bg-gray-50"
+                    )}
+                  >
+                    <Sparkles className="w-4 h-4" />
+                    作文生成
+                  </button>
+                  <button
+                    onClick={() => setEssayMode('guide')}
+                    className={cn(
+                      "px-4 py-2 rounded-md text-sm font-medium transition-all flex items-center gap-2",
+                      essayMode === 'guide' ? "bg-amber-50 text-amber-600 shadow-sm ring-1 ring-amber-200" : "text-gray-500 hover:bg-gray-50"
+                    )}
+                  >
+                    <Lightbulb className="w-4 h-4" />
+                    写作引导
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {(essayMode === 'generate' ? !essayResult : !guideResult) ? (
               <div className="flex-1 overflow-y-auto custom-scrollbar">
                 <div className="max-w-4xl mx-auto py-6">
                   <div className="mb-6 text-center">
-                    <div className="inline-flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-indigo-100 to-purple-100 rounded-full mb-3">
-                      <PenTool className="w-5 h-5 text-indigo-600" />
-                      <span className="font-bold text-indigo-900">AI 作文助手</span>
-                    </div>
-                    <p className="text-gray-600">输入主题或上传图片，AI 将根据年级和作文类型为你生成优质作文</p>
+                    {essayMode === 'generate' ? (
+                      <>
+                        <div className="inline-flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-indigo-100 to-purple-100 rounded-full mb-3">
+                          <PenTool className="w-5 h-5 text-indigo-600" />
+                          <span className="font-bold text-indigo-900">AI 作文助手</span>
+                        </div>
+                        <p className="text-gray-600">输入主题或上传图片，AI 将根据年级和作文类型为你生成优质作文</p>
+                      </>
+                    ) : (
+                      <>
+                        <div className="inline-flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-amber-100 to-orange-100 rounded-full mb-3">
+                          <Lightbulb className="w-5 h-5 text-amber-600" />
+                          <span className="font-bold text-amber-900">作文灵感导师</span>
+                        </div>
+                        <p className="text-gray-600">写不出来？不知道怎么写？AI 老师帮你打开思路，提供大纲和素材！</p>
+                      </>
+                    )}
+
                   </div>
-                  <EssayGenerator onGenerate={handleEssayGenerate} isLoading={loading} />
+                  <EssayGenerator
+                    onGenerate={essayMode === 'generate' ? handleEssayGenerate : handleEssayGuideGenerate}
+                    isLoading={loading}
+                    buttonText={essayMode === 'generate' ? '开始生成作文' : '获取写作思路'}
+                  />
                 </div>
               </div>
             ) : (
@@ -828,74 +975,41 @@ export default function Home() {
                 <div className="max-w-5xl mx-auto py-6">
                   <div className="mb-4">
                     <Button
-                      onClick={resetEssay}
+                      onClick={essayMode === 'generate' ? resetEssay : resetGuide}
                       variant="outline"
                       className="gap-2"
                     >
                       <RefreshCw className="w-4 h-4" />
-                      重新创作
+                      {essayMode === 'generate' ? '重新创作' : '重新获取引导'}
                     </Button>
                   </div>
-                  <EssayResult
-                    essay={essayResult}
-                    topic={essayTopic}
-                    grade={essayGrade}
-                    essayType={essayType}
-                    onRegenerate={() => handleEssayGenerate({ topic: essayTopic, grade: essayGrade, essayType, wordCount: essayWordCount })}
-                    isRegenerating={loading}
-                  />
+
+                  {essayMode === 'generate' ? (
+                    <EssayResult
+                      essay={essayResult!}
+                      topic={essayTopic}
+                      grade={essayGrade}
+                      essayType={essayType}
+                      onRegenerate={() => handleEssayGenerate({ topic: essayTopic, grade: essayGrade, essayType, wordCount: essayWordCount })}
+                      isRegenerating={loading}
+                    />
+                  ) : (
+                    <EssayGuideResult
+                      guide={guideResult!}
+                      topic={guideTopic}
+                      grade={guideGrade}
+                      essayType={guideType}
+                      onRegenerate={() => handleEssayGuideGenerate({ topic: guideTopic, grade: guideGrade, essayType: guideType })}
+                      isRegenerating={loading}
+                    />
+                  )}
                 </div>
               </div>
             )}
           </div>
         )}
 
-        {/* --- Tab: Essay Guide --- */}
-        {activeTab === 'guide' && (
-          <div className="animate-in fade-in h-[calc(100vh-140px)] flex flex-col">
-            {!guideResult ? (
-              <div className="flex-1 overflow-y-auto custom-scrollbar">
-                <div className="max-w-4xl mx-auto py-6">
-                  <div className="mb-6 text-center">
-                    <div className="inline-flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-amber-100 to-orange-100 rounded-full mb-3">
-                      <Lightbulb className="w-5 h-5 text-amber-600" />
-                      <span className="font-bold text-amber-900">作文灵感导师</span>
-                    </div>
-                    <p className="text-gray-600">写不出来？不知道怎么写？AI 老师帮你打开思路，提供大纲和素材！</p>
-                  </div>
-                  <EssayGenerator
-                    onGenerate={handleEssayGuideGenerate}
-                    isLoading={loading}
-                    buttonText="获取写作思路"
-                  />
-                </div>
-              </div>
-            ) : (
-              <div className="flex-1 overflow-y-auto custom-scrollbar">
-                <div className="max-w-5xl mx-auto py-6">
-                  <div className="mb-4">
-                    <Button
-                      onClick={resetGuide}
-                      variant="outline"
-                      className="gap-2"
-                    >
-                      <RefreshCw className="w-4 h-4" />
-                      重新获取引导
-                    </Button>
-                  </div>
-                  <EssayGuideResult
-                    guide={guideResult}
-                    topic={guideTopic}
-                    grade={guideGrade}
-                    essayType={guideType}
-                    onRegenerate={() => handleEssayGuideGenerate({ topic: guideTopic, grade: guideGrade, essayType: guideType })}
-                    isRegenerating={loading}
-                  />
-                </div>
-              </div>
-            )}
-          </div>
-        )}
+        {/* --- Removed Tab: Essay Guide (Merged into Essay) --- */}
 
       </main>
 

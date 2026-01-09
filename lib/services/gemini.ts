@@ -674,6 +674,20 @@ ${wordCountReq}
     // Default (though we removed Google UI, keep logic safe)
     throw new Error('当前仅支持 Qwen 模型');
   }
+
+  // Table Recognition
+  async recognizeTable(imageFile: File): Promise<string> {
+    if (this.activeProvider === 'qwen') {
+      if (!this.qwenApiKey) throw new Error('请先设置通义千问 API Key');
+      const prompt = '请识别这张图片中的表格。请直接输出标准的 **Markdown 表格** 格式，不要包含Markdown代码块标记（如```markdown），不要包含任何其他解释性文字。如果图片中包含多个表格，请依次输出。';
+      try {
+        return await this.callQwenVL(prompt, [imageFile]);
+      } catch (error: any) {
+        throw new Error(`表格识别失败: ${error.message}`);
+      }
+    }
+    throw new Error('当前仅支持 Qwen 模型');
+  }
 }
 
 export const geminiService = new GeminiService();
