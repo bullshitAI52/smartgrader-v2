@@ -502,8 +502,9 @@ class GeminiService {
     image?: File;
     grade: string;
     essayType: string;
+    wordCount?: string;
   }): Promise<string> {
-    const { topic, image, grade, essayType } = params;
+    const { topic, image, grade, essayType, wordCount } = params;
 
     // Grade level mapping
     const gradeLabels: Record<string, string> = {
@@ -521,10 +522,26 @@ class GeminiService {
       descriptive: '描写文：要求通过生动细腻的描写，展现人物、景物或场景的特点。注重细节刻画，运用修辞手法。',
       practical: '应用文：要求符合特定格式和实用目的，如书信、通知、倡议书等。格式规范，内容实用。',
       imaginative: '想象作文：要求发挥想象力进行创作，情节新奇有趣，富有创意。合理想象，主题积极向上。',
+      diary: '日记：要求记录一天的所见所闻、所做所感。格式正确（日期、星期、天气），内容真实，感情自然。',
+      weekly_diary: '周记：要求回顾一周的学习和生活，总结得失，制定计划。叙议结合，条理清晰。',
+      other: '自由写作：不限题材和体裁，鼓励创新和个性化表达。',
     };
 
     const gradeLabel = gradeLabels[grade] || '小学六年级';
     const essayGuidance = essayTypePrompts[essayType] || essayTypePrompts.narrative;
+
+    // Construct word count requirement
+    let wordCountReq = '';
+    if (wordCount && wordCount.trim()) {
+      wordCountReq = `2. 字数要求：${wordCount.trim()}字左右`;
+    } else {
+      wordCountReq = `2. 字数要求：
+   - 小学低年级（1-2年级）：200-300字
+   - 小学中年级（3-4年级）：300-400字
+   - 小学高年级（5-6年级）：400-500字
+   - 初中：500-600字
+   - 高中：800-1000字`;
+    }
 
     // Qwen Provider
     if (this.activeProvider === 'qwen') {
@@ -538,12 +555,7 @@ class GeminiService {
 
 【写作要求】
 1. 语言应符合${gradeLabel}学生的水平，用词恰当，句式自然
-2. 字数要求：
-   - 小学低年级（1-2年级）：200-300字
-   - 小学中年级（3-4年级）：300-400字
-   - 小学高年级（5-6年级）：400-500字
-   - 初中：500-600字
-   - 高中：800-1000字
+${wordCountReq}
 3. 结构完整，层次清晰
 4. 内容要有真情实感，贴近学生生活
 5. 适当运用修辞手法，使文章生动有趣
@@ -576,12 +588,7 @@ class GeminiService {
 
 【写作要求】
 1. 语言应符合${gradeLabel}学生的水平，用词恰当，句式自然
-2. 字数要求：
-   - 小学低年级（1-2年级）：200-300字
-   - 小学中年级（3-4年级）：300-400字
-   - 小学高年级（5-6年级）：400-500字
-   - 初中：500-600字
-   - 高中：800-1000字
+${wordCountReq}
 3. 结构完整，层次清晰
 4. 内容要有真情实感，贴近学生生活
 5. 适当运用修辞手法，使文章生动有趣

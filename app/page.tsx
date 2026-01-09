@@ -23,7 +23,7 @@ export default function Home() {
   // -- Shared State --
   const [showApiKeyModal, setShowApiKeyModal] = useState(false);
   const [apiKey, setApiKey] = useState('');
-  const [provider, setProvider] = useState<'google' | 'qwen'>('google');
+  const [provider, setProvider] = useState<'google' | 'qwen'>('qwen');
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -48,17 +48,17 @@ export default function Home() {
   const [essayTopic, setEssayTopic] = useState('');
   const [essayGrade, setEssayGrade] = useState('6');
   const [essayType, setEssayType] = useState('narrative');
+  const [essayWordCount, setEssayWordCount] = useState('');
   const [essayResult, setEssayResult] = useState<string | null>(null);
 
   // -- Init --
   useEffect(() => {
-    const storedProvider = (localStorage.getItem('ai_provider') as 'google' | 'qwen') || 'google';
-    setProvider(storedProvider);
-
-    const storedKey = localStorage.getItem(storedProvider === 'google' ? 'gemini_api_key' : 'qwen_api_key');
+    // 强制使用 qwen
+    setProvider('qwen');
+    const storedKey = localStorage.getItem('qwen_api_key');
     if (storedKey) {
       setApiKey(storedKey);
-      geminiService.setApiKey(storedKey, storedProvider);
+      geminiService.setApiKey(storedKey, 'qwen');
     } else {
       setShowApiKeyModal(true);
     }
@@ -70,14 +70,11 @@ export default function Home() {
       return;
     }
 
-    if (provider === 'google') {
-      localStorage.setItem('gemini_api_key', apiKey);
-    } else {
-      localStorage.setItem('qwen_api_key', apiKey);
-    }
-    localStorage.setItem('ai_provider', provider);
+    // Always save as qwen key
+    localStorage.setItem('qwen_api_key', apiKey);
+    localStorage.setItem('ai_provider', 'qwen');
 
-    geminiService.setApiKey(apiKey, provider);
+    geminiService.setApiKey(apiKey, 'qwen');
     setShowApiKeyModal(false);
   };
 
@@ -124,7 +121,7 @@ export default function Home() {
         setError('无效或缺失的 API Key。请检查您的设置。');
         setShowApiKeyModal(true);
       } else if (message.includes('Failed to fetch')) {
-        setError('网络连接失败。如使用 Google 模型，请开启全局代理；推荐切换至"阿里通义千问"以获得稳定体验。');
+        setError('网络连接失败。请检查网络或 API Key 设置。');
       } else {
         setError(message);
       }
@@ -164,7 +161,7 @@ export default function Home() {
             console.error('OCR Error:', err);
             let msg = err instanceof Error ? err.message : String(err);
             if (msg.includes('Failed to fetch')) {
-              msg = '网络失败 (需全局代理或切换阿里Qwen)';
+              msg = '网络失败 (请检查网络)';
             }
             return `[识别失败] ${msg}`;
           }
@@ -216,7 +213,7 @@ export default function Home() {
     } catch (err: any) {
       const message = err instanceof Error ? err.message : 'An error occurred during homework solving';
       if (message.includes('Failed to fetch')) {
-        setError('网络连接失败。如使用 Google 模型，请开启全局代理；推荐切换至"阿里通义千问"。');
+        setError('网络连接失败。请检查网络或 Key。');
       } else {
         setError(message);
       }
@@ -231,6 +228,7 @@ export default function Home() {
     image?: File;
     grade: string;
     essayType: string;
+    wordCount?: string;
   }) => {
     if (!checkApiKey()) return;
 
@@ -241,13 +239,14 @@ export default function Home() {
       setEssayTopic(params.topic || '图片主题');
       setEssayGrade(params.grade);
       setEssayType(params.essayType);
+      setEssayWordCount(params.wordCount || '');
 
       const essay = await geminiService.generateEssay(params);
       setEssayResult(essay);
     } catch (err: any) {
       const message = err instanceof Error ? err.message : 'An error occurred during essay generation';
       if (message.includes('Failed to fetch')) {
-        setError('网络连接失败。如使用 Google 模型，请开启全局代理；推荐切换至"阿里通义千问"。');
+        setError('网络连接失败。请检查网络或 Key。');
       } else {
         setError(message);
       }
@@ -279,47 +278,26 @@ export default function Home() {
           </DialogHeader>
 
           <div className="py-4 space-y-4">
-            {/* Provider Selector */}
-            <div className="flex gap-2 bg-gray-100 p-1 rounded-lg">
-              <button
-                onClick={() => {
-                  setProvider('google');
-                  setApiKey(localStorage.getItem('gemini_api_key') || '');
-                }}
-                className={cn("flex-1 py-2 text-sm font-medium rounded-md transition-all flex items-center justify-center gap-2", provider === 'google' ? "bg-white shadow text-indigo-600" : "text-gray-500 hover:text-gray-700")}
-              >
-                <img src="https://www.gstatic.com/lamda/images/gemini_sparkle_v002_d4735304ff6292a690345.svg" className="w-4 h-4" alt="Google" />
-                Google Gemini
-              </button>
-              <button
-                onClick={() => {
-                  setProvider('qwen');
-                  setApiKey(localStorage.getItem('qwen_api_key') || '');
-                }}
-                className={cn("flex-1 py-2 text-sm font-medium rounded-md transition-all flex items-center justify-center gap-2", provider === 'qwen' ? "bg-white shadow text-indigo-600" : "text-gray-500 hover:text-gray-700")}
-              >
-                <BrainCircuit className="w-4 h-4" />
-                阿里通义千问
-              </button>
+            <div className="flex gap-2 bg-indigo-50 p-3 rounded-lg border border-indigo-100">
+              <BrainCircuit className="w-5 h-5 text-indigo-600 flex-shrink-0" />
+              <div className="text-sm text-indigo-900">
+                当前仅支持 <strong>阿里通义千问 (Qwen)</strong> 模型，提供更稳定的国内访问体验。
+              </div>
             </div>
 
             <div className="space-y-2">
               <label className="text-sm font-medium text-gray-700">
-                {provider === 'google' ? 'Gemini API Key (AIza...)' : 'DashScope API Key (sk-...)'}
+                DashScope API Key (sk-...)
               </label>
               <Input
                 type="password"
-                placeholder={provider === 'google' ? "AIzaSy..." : "sk-..."}
+                placeholder="sk-..."
                 value={apiKey}
                 onChange={(e) => setApiKey(e.target.value)}
                 className="bg-gray-100 border-transparent focus:bg-white focus:border-indigo-500 transition-all font-mono"
               />
               <p className="text-xs text-gray-400">
-                {provider === 'google' ? (
-                  <a href="https://aistudio.google.com/app/apikey" target="_blank" className="hover:text-indigo-600 hover:underline">获取 Google Key &rarr;</a>
-                ) : (
-                  <a href="https://bailian.console.aliyun.com/" target="_blank" className="hover:text-indigo-600 hover:underline">获取阿里云 DashScope Key &rarr;</a>
-                )}
+                <a href="https://bailian.console.aliyun.com/" target="_blank" className="hover:text-indigo-600 hover:underline">获取阿里云 DashScope Key &rarr;</a>
               </p>
             </div>
           </div>
@@ -820,7 +798,7 @@ export default function Home() {
                     topic={essayTopic}
                     grade={essayGrade}
                     essayType={essayType}
-                    onRegenerate={() => handleEssayGenerate({ topic: essayTopic, grade: essayGrade, essayType })}
+                    onRegenerate={() => handleEssayGenerate({ topic: essayTopic, grade: essayGrade, essayType, wordCount: essayWordCount })}
                     isRegenerating={loading}
                   />
                 </div>

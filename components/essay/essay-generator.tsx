@@ -16,6 +16,7 @@ interface EssayGeneratorProps {
         image?: File;
         grade: string;
         essayType: string;
+        wordCount: string;
     }) => Promise<void>;
     isLoading?: boolean;
 }
@@ -40,8 +41,11 @@ const ESSAY_TYPES = [
     { value: 'argumentative', label: '议论文', icon: '💭', description: '表达观点和论证' },
     { value: 'expository', label: '说明文', icon: '📝', description: '介绍事物和知识' },
     { value: 'descriptive', label: '描写文', icon: '🎨', description: '描绘景物和人物' },
-    { value: 'practical', label: '应用文', icon: '✉️', description: '信件、通知等' },
-    { value: 'imaginative', label: '想象作文', icon: '🌟', description: '发挥想象力创作' },
+    { value: 'practical', label: '应用文', icon: '📝', description: '书信、通知、演讲稿等' },
+    { value: 'imaginative', label: '想象作文', icon: '🚀', description: '童话、寓言、科幻故事' },
+    { value: 'diary', label: '日记', icon: '📔', description: '记录日常生活点滴' },
+    { value: 'weekly_diary', label: '周记', icon: '📅', description: '总结一周的学习生活' },
+    { value: 'other', label: '其它/无要求', icon: '✨', description: '无具体限制或自定义' },
 ];
 
 export function EssayGenerator({ onGenerate, isLoading = false }: EssayGeneratorProps) {
@@ -50,6 +54,7 @@ export function EssayGenerator({ onGenerate, isLoading = false }: EssayGenerator
     const [imagePreview, setImagePreview] = useState<string | null>(null);
     const [grade, setGrade] = useState('6');
     const [essayType, setEssayType] = useState('narrative');
+    const [wordCount, setWordCount] = useState('');
     const [error, setError] = useState<string | null>(null);
     const [inputMode, setInputMode] = useState<'text' | 'image'>('text');
     const fileInputRef = useRef<HTMLInputElement>(null);
@@ -113,6 +118,7 @@ export function EssayGenerator({ onGenerate, isLoading = false }: EssayGenerator
             image: inputMode === 'image' ? image || undefined : undefined,
             grade,
             essayType,
+            wordCount,
         });
     };
 
@@ -125,8 +131,8 @@ export function EssayGenerator({ onGenerate, isLoading = false }: EssayGenerator
                     <button
                         onClick={() => setInputMode('text')}
                         className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-all ${inputMode === 'text'
-                                ? 'bg-white text-indigo-600 shadow-sm'
-                                : 'text-gray-500 hover:text-gray-700'
+                            ? 'bg-white text-indigo-600 shadow-sm'
+                            : 'text-gray-500 hover:text-gray-700'
                             }`}
                     >
                         <Type className="w-4 h-4" />
@@ -135,8 +141,8 @@ export function EssayGenerator({ onGenerate, isLoading = false }: EssayGenerator
                     <button
                         onClick={() => setInputMode('image')}
                         className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-all ${inputMode === 'image'
-                                ? 'bg-white text-indigo-600 shadow-sm'
-                                : 'text-gray-500 hover:text-gray-700'
+                            ? 'bg-white text-indigo-600 shadow-sm'
+                            : 'text-gray-500 hover:text-gray-700'
                             }`}
                     >
                         <Camera className="w-4 h-4" />
@@ -234,29 +240,39 @@ export function EssayGenerator({ onGenerate, isLoading = false }: EssayGenerator
 
             {/* Configuration Grid */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {/* Grade Selector */}
+                {/* Grade and Word Count Selector */}
                 <Card className="border border-gray-200 shadow-sm hover:shadow-md transition-shadow">
                     <CardHeader className="pb-3">
                         <CardTitle className="text-base flex items-center gap-2 text-gray-700">
                             <div className="w-8 h-8 rounded-lg bg-blue-100 flex items-center justify-center">
                                 <span className="text-lg">🎓</span>
                             </div>
-                            选择年级
+                            年级与字数
                         </CardTitle>
                     </CardHeader>
-                    <CardContent>
-                        <Select value={grade} onValueChange={setGrade}>
-                            <SelectTrigger className="h-12 text-base bg-gray-50 hover:bg-white transition-colors">
-                                <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent className="max-h-80">
-                                {GRADES.map((g) => (
-                                    <SelectItem key={g.value} value={g.value} className="text-base py-3">
-                                        {g.label}
-                                    </SelectItem>
-                                ))}
-                            </SelectContent>
-                        </Select>
+                    <CardContent className="grid grid-cols-3 gap-4">
+                        <div className="col-span-2 space-y-2">
+                            <Select value={grade} onValueChange={setGrade}>
+                                <SelectTrigger className="h-12 text-base bg-gray-50 hover:bg-white transition-colors">
+                                    <SelectValue placeholder="选择年级" />
+                                </SelectTrigger>
+                                <SelectContent className="max-h-80">
+                                    {GRADES.map((g) => (
+                                        <SelectItem key={g.value} value={g.value} className="text-base py-3">
+                                            {g.label}
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        </div>
+                        <div className="col-span-1 space-y-2">
+                            <Input
+                                value={wordCount}
+                                onChange={(e) => setWordCount(e.target.value)}
+                                placeholder="字数(可选)"
+                                className="h-12 text-base bg-gray-50 hover:bg-white transition-colors"
+                            />
+                        </div>
                     </CardContent>
                 </Card>
 
