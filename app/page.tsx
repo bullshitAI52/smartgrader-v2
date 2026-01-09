@@ -29,7 +29,7 @@ export default function Home() {
   const [error, setError] = useState<string | null>(null);
 
   const [loading, setLoading] = useState(false);
-  const [theme, setTheme] = useState<'light' | 'eye-care' | 'dark'>('dark');
+  const [theme, setTheme] = useState<'light' | 'eye-care' | 'dark'>('light');
 
   // -- Grading State --
   const [gradingImages, setGradingImages] = useState<string[]>([]);

@@ -17,6 +17,7 @@ interface EssayGeneratorProps {
         grade: string;
         essayType: string;
         wordCount: string;
+        language?: string;
     }) => Promise<void>;
     isLoading?: boolean;
     buttonText?: string;
@@ -58,6 +59,7 @@ export function EssayGenerator({ onGenerate, isLoading = false, buttonText = '�
     const [wordCount, setWordCount] = useState('');
     const [error, setError] = useState<string | null>(null);
     const [inputMode, setInputMode] = useState<'text' | 'image'>('text');
+    const [language, setLanguage] = useState<'chinese' | 'english'>('chinese');
     const fileInputRef = useRef<HTMLInputElement>(null);
 
     const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -120,6 +122,7 @@ export function EssayGenerator({ onGenerate, isLoading = false, buttonText = '�
             grade,
             essayType,
             wordCount,
+            language,
         });
     };
 
@@ -148,6 +151,31 @@ export function EssayGenerator({ onGenerate, isLoading = false, buttonText = '�
                     >
                         <Camera className="w-4 h-4" />
                         图片识别
+                    </button>
+                </div>
+            </div>
+
+            {/* Language Selector */}
+            <div className="flex items-center gap-3">
+                <span className="text-sm font-semibold text-gray-600">写作语言：</span>
+                <div className="flex gap-2 bg-gray-100 p-1 rounded-lg">
+                    <button
+                        onClick={() => setLanguage('chinese')}
+                        className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-all ${language === 'chinese'
+                            ? 'bg-white text-indigo-600 shadow-sm'
+                            : 'text-gray-500 hover:text-gray-700'
+                            }`}
+                    >
+                        🇨🇳 中文
+                    </button>
+                    <button
+                        onClick={() => setLanguage('english')}
+                        className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-all ${language === 'english'
+                            ? 'bg-white text-indigo-600 shadow-sm'
+                            : 'text-gray-500 hover:text-gray-700'
+                            }`}
+                    >
+                        🇺🇸 English
                     </button>
                 </div>
             </div>
@@ -308,55 +336,57 @@ export function EssayGenerator({ onGenerate, isLoading = false, buttonText = '�
                         </Select>
                     </CardContent>
                 </Card>
-            </div>
-
-            {/* Selected Options Summary */}
-            <div className="flex flex-wrap items-center gap-2 p-4 bg-indigo-50 rounded-lg border border-indigo-100">
-                <span className="text-sm font-semibold text-indigo-900">已选择：</span>
-                <Badge variant="secondary" className="bg-blue-100 text-blue-700 hover:bg-blue-100">
-                    {GRADES.find((g) => g.value === grade)?.label}
-                </Badge>
-                <Badge variant="secondary" className="bg-purple-100 text-purple-700 hover:bg-purple-100">
-                    {ESSAY_TYPES.find((t) => t.value === essayType)?.label}
-                </Badge>
-            </div>
-
-            {/* Error Display */}
-            {error && (
-                <div className="p-4 bg-red-50 border border-red-200 rounded-lg flex items-center justify-between">
-                    <span className="text-red-800 font-medium flex items-center gap-2">
-                        <X className="w-5 h-5" />
-                        {error}
-                    </span>
-                    <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => setError(null)}
-                        className="h-8 w-8 p-0"
-                    >
-                        <X className="w-4 h-4" />
-                    </Button>
+                {/* Selected Options Summary */}
+                <div className="flex flex-wrap items-center gap-2 p-4 bg-indigo-50 rounded-lg border border-indigo-100 dark:bg-indigo-900/20 dark:border-indigo-800">
+                    <span className="text-sm font-semibold text-indigo-900 dark:text-indigo-300">已选择：</span>
+                    <Badge variant="secondary" className="bg-blue-100 text-blue-700 hover:bg-blue-100 dark:bg-blue-900/40 dark:text-blue-300">
+                        {language === 'chinese' ? '中文' : '英文'}
+                    </Badge>
+                    <Badge variant="secondary" className="bg-blue-100 text-blue-700 hover:bg-blue-100 dark:bg-blue-900/40 dark:text-blue-300">
+                        {GRADES.find((g) => g.value === grade)?.label}
+                    </Badge>
+                    <Badge variant="secondary" className="bg-purple-100 text-purple-700 hover:bg-purple-100 dark:bg-purple-900/40 dark:text-purple-300">
+                        {ESSAY_TYPES.find((t) => t.value === essayType)?.label}
+                    </Badge>
                 </div>
-            )}
 
-            {/* Submit Button */}
-            <Button
-                onClick={handleSubmit}
-                disabled={isLoading}
-                className="w-full h-14 text-lg font-bold bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 shadow-lg hover:shadow-xl transition-all gap-3"
-            >
-                {isLoading ? (
-                    <>
-                        <RefreshCw className="w-6 h-6 animate-spin" />
-                        AI 正在创作中...
-                    </>
-                ) : (
-                    <>
-                        <Sparkles className="w-6 h-6" />
-                        {buttonText}
-                    </>
+                {/* Error Display */}
+                {error && (
+                    <div className="p-4 bg-red-50 border border-red-200 rounded-lg flex items-center justify-between">
+                        <span className="text-red-800 font-medium flex items-center gap-2">
+                            <X className="w-5 h-5" />
+                            {error}
+                        </span>
+                        <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => setError(null)}
+                            className="h-8 w-8 p-0"
+                        >
+                            <X className="w-4 h-4" />
+                        </Button>
+                    </div>
                 )}
-            </Button>
+
+                {/* Submit Button */}
+                <Button
+                    onClick={handleSubmit}
+                    disabled={isLoading}
+                    className="w-full h-14 text-lg font-bold bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 shadow-lg hover:shadow-xl transition-all gap-3"
+                >
+                    {isLoading ? (
+                        <>
+                            <RefreshCw className="w-6 h-6 animate-spin" />
+                            AI 正在创作中...
+                        </>
+                    ) : (
+                        <>
+                            <Sparkles className="w-6 h-6" />
+                            {buttonText}
+                        </>
+                    )}
+                </Button>
+            </div>
         </div>
     );
 }

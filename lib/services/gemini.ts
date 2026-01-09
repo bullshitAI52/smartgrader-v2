@@ -503,8 +503,9 @@ class GeminiService {
     grade: string;
     essayType: string;
     wordCount?: string;
+    language?: string;
   }): Promise<string> {
-    const { topic, image, grade, essayType, wordCount } = params;
+    const { topic, image, grade, essayType, wordCount, language = 'chinese' } = params;
 
     // Grade level mapping
     const gradeLabels: Record<string, string> = {
@@ -533,21 +534,52 @@ class GeminiService {
     // Construct word count requirement
     let wordCountReq = '';
     if (wordCount && wordCount.trim()) {
-      wordCountReq = `2. 字数要求：${wordCount.trim()}字左右`;
+      wordCountReq = language === 'english'
+        ? `2. Word Count Requirement: Around ${wordCount.trim()} words`
+        : `2. 字数要求：${wordCount.trim()}字左右`;
     } else {
-      wordCountReq = `2. 字数要求：
+      if (language === 'english') {
+        wordCountReq = `2. Word Count Requirement:
+   - Primary School (1-2): 30-50 words
+   - Primary School (3-4): 50-80 words
+   - Primary School (5-6): 80-120 words
+   - Middle School: 120-200 words
+   - High School: 200-300 words`;
+      } else {
+        wordCountReq = `2. 字数要求：
    - 小学低年级（1-2年级）：200-300字
    - 小学中年级（3-4年级）：300-400字
    - 小学高年级（5-6年级）：400-500字
    - 初中：500-600字
    - 高中：800-1000字`;
+      }
     }
 
     // Qwen Provider
     if (this.activeProvider === 'qwen') {
       if (!this.qwenApiKey) throw new Error('请先设置通义千问 API Key');
 
-      const basePrompt = `
+      let basePrompt = '';
+
+      if (language === 'english') {
+        basePrompt = `
+You are an experienced English teacher skilled in guiding students with their writing. Please write an English composition based on the following requirements:
+
+【Grade Level】${gradeLabel}
+【Essay Type】${essayType}
+
+【Writing Requirements】
+1. Language should fit the level of a ${gradeLabel} student, with appropriate vocabulary and natural sentence structures.
+${wordCountReq}
+3. Clear structure and logical organization.
+4. Content should be authentic and relatable to student life.
+5. Use appropriate rhetorical devices to make the writing engaging.
+6. Correct punctuation and grammar.
+
+【IMPORTANT】Output only the essay content in English. Do not add a title, author name, or any explanatory text.
+`;
+      } else {
+        basePrompt = `
 你是一位经验丰富的语文老师，擅长指导学生写作。请根据以下要求创作一篇作文：
 
 【年级水平】${gradeLabel}
@@ -563,11 +595,20 @@ ${wordCountReq}
 
 【重要】直接输出作文正文，不要添加标题、作者署名或任何说明性文字。
       `;
+      }
 
       const finalTopic = image ? '' : topic;
-      const finalPrompt = image
-        ? `${basePrompt}\n\n请根据图片中的内容确定作文主题，然后创作作文。`
-        : `${basePrompt}\n\n【作文主题】${finalTopic}`;
+      let finalPrompt = '';
+
+      if (image) {
+        finalPrompt = language === 'english'
+          ? `${basePrompt}\n\nPlease determine the essay topic based on the image content, and then write the essay.`
+          : `${basePrompt}\n\n请根据图片中的内容确定作文主题，然后创作作文。`;
+      } else {
+        finalPrompt = language === 'english'
+          ? `${basePrompt}\n\n【Essay Topic】${finalTopic}`
+          : `${basePrompt}\n\n【作文主题】${finalTopic}`;
+      }
 
       try {
         return await this.callQwenVL(finalPrompt, image ? [image] : []);
