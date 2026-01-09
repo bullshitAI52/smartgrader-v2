@@ -11,7 +11,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
-import { CheckCircle2, XCircle, RefreshCw, X, Settings2, Sparkles, BrainCircuit, GraduationCap, ScanText, FileText, BookOpen, Copy, UploadCloud, PenTool, Lightbulb, Download, Table } from 'lucide-react';
+import { CheckCircle2, XCircle, RefreshCw, X, Settings2, Sparkles, BrainCircuit, GraduationCap, ScanText, FileText, BookOpen, Copy, UploadCloud, PenTool, Lightbulb, Download, Table, Moon, Sun, Eye } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import { ExamGradingResult, geminiService } from '@/lib/services/gemini';
 import { cn } from '@/lib/utils';
@@ -27,7 +27,9 @@ export default function Home() {
   const [apiKey, setApiKey] = useState('');
   const [provider, setProvider] = useState<'google' | 'qwen'>('qwen');
   const [error, setError] = useState<string | null>(null);
+
   const [loading, setLoading] = useState(false);
+  const [theme, setTheme] = useState<'light' | 'eye-care'>('light');
 
   // -- Grading State --
   const [gradingImages, setGradingImages] = useState<string[]>([]);
@@ -235,6 +237,21 @@ export default function Home() {
     }
   };
 
+  const downloadTextAsTxt = (text: string, index: number) => {
+    try {
+      const blob = new Blob([text], { type: 'text/plain;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `ocr_result_${index + 1}.txt`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    } catch (e) {
+      setError('导出失败，请尝试复制内容手动粘贴');
+    }
+  };
+
   // 3. Homework Handler
   const handleHwUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -353,10 +370,19 @@ export default function Home() {
     setGuideResult(null);
   };
 
+
+
+  const toggleTheme = () => {
+    setTheme(prev => prev === 'light' ? 'eye-care' : 'light');
+  };
+
   // -- Render Helpers --
 
   return (
-    <div className="min-h-screen bg-gray-50 text-gray-900 font-sans selection:bg-indigo-100">
+    <div className="min-h-screen font-sans selection:bg-indigo-100 transition-colors duration-300"
+      style={{ backgroundColor: 'var(--main-bg)', color: 'var(--text-main)' }}
+      data-theme={theme}
+    >
 
       {/* Configure Dialog */}
       <Dialog open={showApiKeyModal} onOpenChange={setShowApiKeyModal}>
@@ -436,6 +462,12 @@ export default function Home() {
 
           <Button variant="ghost" size="icon" onClick={() => setShowApiKeyModal(true)}>
             <Settings2 className="w-5 h-5 text-gray-500" />
+          </Button>
+
+          <div className="w-px h-6 bg-gray-200 mx-1"></div>
+
+          <Button variant="ghost" size="icon" onClick={toggleTheme} title={theme === 'light' ? '切换护眼模式' : '切换普通模式'}>
+            {theme === 'light' ? <Eye className="w-5 h-5 text-gray-500" /> : <Sun className="w-5 h-5 text-amber-600" />}
           </Button>
         </div>
       </header>
@@ -528,6 +560,16 @@ export default function Home() {
                       onClick={() => navigator.clipboard.writeText(ocrMode === 'text' ? ocrResults[ocrCurrentPage] : ocrTableResults[ocrCurrentPage])}
                     >
                       <Copy className="w-3 h-3" /> 复制
+                    </Button>
+                  )}
+                  {ocrMode === 'text' && ocrResults[ocrCurrentPage] && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="h-8 gap-1 text-indigo-600 border-indigo-200 hover:bg-indigo-50"
+                      onClick={() => downloadTextAsTxt(ocrResults[ocrCurrentPage], ocrCurrentPage)}
+                    >
+                      <Download className="w-3 h-3" /> 导出TXT
                     </Button>
                   )}
                   {ocrMode === 'table' && ocrTableResults[ocrCurrentPage] && (

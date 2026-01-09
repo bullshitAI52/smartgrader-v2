@@ -9,7 +9,6 @@
     --popover: 0 0% 100%;
     --popover-foreground: 222.2 84% 4.9%;
     --primary: 246 80% 60%;
-    /* Vibrant Purple/Indigo */
     --primary-foreground: 210 40% 98%;
     --secondary: 210 40% 96.1%;
     --secondary-foreground: 222.2 47.4% 11.2%;
@@ -23,6 +22,32 @@
     --input: 214.3 31.8% 91.4%;
     --ring: 246 80% 60%;
     --radius: 1rem;
+    --main-bg: #f8fafc; /* slate-50 */
+    --text-main: #0f172a; /* slate-900 */
+  }
+
+  [data-theme="eye-care"] {
+    --background: 48 100% 96%; /* Warm Beige */
+    --foreground: 30 50% 25%; /* Warm Brown */
+    --card: 48 100% 98%;
+    --card-foreground: 30 50% 25%;
+    --popover: 48 100% 98%;
+    --popover-foreground: 30 50% 25%;
+    --primary: 34 50% 45%; /* Warm Earthy */
+    --primary-foreground: 48 100% 96%;
+    --secondary: 40 50% 90%;
+    --secondary-foreground: 30 50% 25%;
+    --muted: 40 30% 90%;
+    --muted-foreground: 30 20% 40%;
+    --accent: 40 40% 92%;
+    --accent-foreground: 30 50% 25%;
+    --destructive: 0 70% 50%;
+    --destructive-foreground: 48 100% 96%;
+    --border: 40 30% 85%;
+    --input: 40 30% 85%;
+    --ring: 34 50% 45%;
+    --main-bg: #fdf6e3; /* Solarized Light / Warm */
+    --text-main: #433422;
   }
 }
 
