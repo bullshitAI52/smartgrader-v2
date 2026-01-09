@@ -29,7 +29,7 @@ export default function Home() {
   const [error, setError] = useState<string | null>(null);
 
   const [loading, setLoading] = useState(false);
-  const [theme, setTheme] = useState<'light' | 'eye-care'>('light');
+  const [theme, setTheme] = useState<'light' | 'eye-care' | 'dark'>('dark');
 
   // -- Grading State --
   const [gradingImages, setGradingImages] = useState<string[]>([]);
@@ -373,7 +373,11 @@ export default function Home() {
 
 
   const toggleTheme = () => {
-    setTheme(prev => prev === 'light' ? 'eye-care' : 'light');
+    setTheme(prev => {
+      if (prev === 'light') return 'eye-care';
+      if (prev === 'eye-care') return 'dark';
+      return 'light';
+    });
   };
 
   // -- Render Helpers --
@@ -466,8 +470,10 @@ export default function Home() {
 
           <div className="w-px h-6 bg-gray-200 mx-1"></div>
 
-          <Button variant="ghost" size="icon" onClick={toggleTheme} title={theme === 'light' ? '切换护眼模式' : '切换普通模式'}>
-            {theme === 'light' ? <Eye className="w-5 h-5 text-gray-500" /> : <Sun className="w-5 h-5 text-amber-600" />}
+          <Button variant="ghost" size="icon" onClick={toggleTheme} title="切换主题">
+            {theme === 'light' && <Eye className="w-5 h-5 text-gray-500" />}
+            {theme === 'eye-care' && <Sun className="w-5 h-5 text-amber-600" />}
+            {theme === 'dark' && <Moon className="w-5 h-5 text-indigo-400" />}
           </Button>
         </div>
       </header>
