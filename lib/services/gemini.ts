@@ -626,6 +626,54 @@ ${wordCountReq}
     const msg = lastError instanceof Error ? lastError.message : String(lastError);
     throw new Error(`作文生成失败: ${msg}`);
   }
+
+  // Generate Essay Guidance (New Mode)
+  async generateEssayGuide(params: {
+    topic: string;
+    image?: File;
+    grade: string;
+    essayType: string;
+  }): Promise<string> {
+    const { topic, image, grade, essayType } = params;
+
+    const gradeLabels: Record<string, string> = {
+      '1': '小学一年级', '2': '小学二年级', '3': '小学三年级',
+      '4': '小学四年级', '5': '小学五年级', '6': '小学六年级',
+      '7': '初中一年级', '8': '初中二年级', '9': '初中三年级',
+      '10': '高中一年级', '11': '高中二年级', '12': '高中三年级',
+    };
+
+    const gradeLabel = gradeLabels[grade] || '小学六年级';
+
+    // Qwen Provider (Simplified for Guide)
+    if (this.activeProvider === 'qwen') {
+      if (!this.qwenApiKey) throw new Error('请先设置通义千问 API Key');
+      const basePrompt = `
+你是一位启发式的语文作文辅导老师。学生想写一篇关于"${topic || '图片内容'}"的${gradeLabel}作文（类型：${essayType}）。
+请不要直接写作文，而是提供一份**写作引导**，帮助学生打开思路。
+
+请包含以下四个板块：
+1. 💡 **审题破题**：简单分析题目核心，确定写作重点。
+2. 🛣️ **思路拓展**：提供3个不同的写作切入点或立意方向。
+3. 💎 **素材锦囊**：
+   - 推荐3-5个好词好句（成语、诗句或优美短句）。
+   - 推荐1-2个相关的名人名言或典型事例。
+4. 🏗️ **大纲建议**：提供一个标准的写作结构（开头-中间-结尾）建议。
+
+请用亲切、鼓励的语气，适合${gradeLabel}学生阅读。格式使用Markdown，使用emoji增加趣味性。
+`;
+      const finalPrompt = image ? `${basePrompt}\n\n请结合图片内容生成引导。` : basePrompt;
+
+      try {
+        return await this.callQwenVL(finalPrompt, image ? [image] : []);
+      } catch (e: any) {
+        throw new Error(`引导生成失败: ${e.message}`);
+      }
+    }
+
+    // Default (though we removed Google UI, keep logic safe)
+    throw new Error('当前仅支持 Qwen 模型');
+  }
 }
 
 export const geminiService = new GeminiService();

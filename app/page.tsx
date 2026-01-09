@@ -11,11 +11,12 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
-import { CheckCircle2, XCircle, RefreshCw, X, Settings2, Sparkles, BrainCircuit, GraduationCap, ScanText, FileText, BookOpen, Copy, UploadCloud, PenTool } from 'lucide-react';
+import { CheckCircle2, XCircle, RefreshCw, X, Settings2, Sparkles, BrainCircuit, GraduationCap, ScanText, FileText, BookOpen, Copy, UploadCloud, PenTool, Lightbulb } from 'lucide-react';
 import { ExamGradingResult, geminiService } from '@/lib/services/gemini';
 import { cn } from '@/lib/utils';
 import { EssayGenerator } from '@/components/essay/essay-generator';
 import { EssayResult } from '@/components/essay/essay-result';
+import { EssayGuideResult } from '@/components/essay/essay-guide-result';
 
 export default function Home() {
   const [activeTab, setActiveTab] = useState('grading'); // Default to Grading
@@ -50,6 +51,12 @@ export default function Home() {
   const [essayType, setEssayType] = useState('narrative');
   const [essayWordCount, setEssayWordCount] = useState('');
   const [essayResult, setEssayResult] = useState<string | null>(null);
+
+  // -- Essay Guide State --
+  const [guideTopic, setGuideTopic] = useState('');
+  const [guideGrade, setGuideGrade] = useState('6');
+  const [guideType, setGuideType] = useState('narrative');
+  const [guideResult, setGuideResult] = useState<string | null>(null);
 
   // -- Init --
   useEffect(() => {
@@ -259,6 +266,41 @@ export default function Home() {
     setEssayResult(null);
   };
 
+  // 5. Essay Guide Handler
+  const handleEssayGuideGenerate = async (params: {
+    topic: string;
+    image?: File;
+    grade: string;
+    essayType: string;
+    wordCount?: string;
+  }) => {
+    if (!checkApiKey()) return;
+
+    setLoading(true);
+    setError(null);
+    try {
+      setGuideTopic(params.topic || '图片内容');
+      setGuideGrade(params.grade);
+      setGuideType(params.essayType);
+
+      const guide = await geminiService.generateEssayGuide(params);
+      setGuideResult(guide);
+    } catch (err: any) {
+      const message = err instanceof Error ? err.message : 'An error occurred during guide generation';
+      if (message.includes('Failed to fetch')) {
+        setError('网络连接失败。请检查网络或 Key。');
+      } else {
+        setError(message);
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const resetGuide = () => {
+    setGuideResult(null);
+  };
+
   // -- Render Helpers --
 
   return (
@@ -323,6 +365,7 @@ export default function Home() {
               { id: 'grading', label: '试卷批改', icon: FileText },
               { id: 'homework', label: '作业辅导', icon: BookOpen },
               { id: 'essay', label: '语文作文', icon: PenTool },
+              { id: 'guide', label: '作文引导', icon: Lightbulb },
             ].map(tab => (
               <button
                 key={tab.id}
@@ -799,6 +842,53 @@ export default function Home() {
                     grade={essayGrade}
                     essayType={essayType}
                     onRegenerate={() => handleEssayGenerate({ topic: essayTopic, grade: essayGrade, essayType, wordCount: essayWordCount })}
+                    isRegenerating={loading}
+                  />
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* --- Tab: Essay Guide --- */}
+        {activeTab === 'guide' && (
+          <div className="animate-in fade-in h-[calc(100vh-140px)] flex flex-col">
+            {!guideResult ? (
+              <div className="flex-1 overflow-y-auto custom-scrollbar">
+                <div className="max-w-4xl mx-auto py-6">
+                  <div className="mb-6 text-center">
+                    <div className="inline-flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-amber-100 to-orange-100 rounded-full mb-3">
+                      <Lightbulb className="w-5 h-5 text-amber-600" />
+                      <span className="font-bold text-amber-900">作文灵感导师</span>
+                    </div>
+                    <p className="text-gray-600">写不出来？不知道怎么写？AI 老师帮你打开思路，提供大纲和素材！</p>
+                  </div>
+                  <EssayGenerator
+                    onGenerate={handleEssayGuideGenerate}
+                    isLoading={loading}
+                    buttonText="获取写作思路"
+                  />
+                </div>
+              </div>
+            ) : (
+              <div className="flex-1 overflow-y-auto custom-scrollbar">
+                <div className="max-w-5xl mx-auto py-6">
+                  <div className="mb-4">
+                    <Button
+                      onClick={resetGuide}
+                      variant="outline"
+                      className="gap-2"
+                    >
+                      <RefreshCw className="w-4 h-4" />
+                      重新获取引导
+                    </Button>
+                  </div>
+                  <EssayGuideResult
+                    guide={guideResult}
+                    topic={guideTopic}
+                    grade={guideGrade}
+                    essayType={guideType}
+                    onRegenerate={() => handleEssayGuideGenerate({ topic: guideTopic, grade: guideGrade, essayType: guideType })}
                     isRegenerating={loading}
                   />
                 </div>

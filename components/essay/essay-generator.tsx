@@ -19,6 +19,7 @@ interface EssayGeneratorProps {
         wordCount: string;
     }) => Promise<void>;
     isLoading?: boolean;
+    buttonText?: string;
 }
 
 const GRADES = [
@@ -48,7 +49,7 @@ const ESSAY_TYPES = [
     { value: 'other', label: '其它/无要求', icon: '✨', description: '无具体限制或自定义' },
 ];
 
-export function EssayGenerator({ onGenerate, isLoading = false }: EssayGeneratorProps) {
+export function EssayGenerator({ onGenerate, isLoading = false, buttonText = '开始创作' }: EssayGeneratorProps) {
     const [topic, setTopic] = useState('');
     const [image, setImage] = useState<File | null>(null);
     const [imagePreview, setImagePreview] = useState<string | null>(null);
@@ -352,7 +353,7 @@ export function EssayGenerator({ onGenerate, isLoading = false }: EssayGenerator
                 ) : (
                     <>
                         <Sparkles className="w-6 h-6" />
-                        开始生成作文
+                        {buttonText}
                     </>
                 )}
             </Button>
